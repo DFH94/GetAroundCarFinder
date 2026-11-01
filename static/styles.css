@@ -130,3 +130,5 @@ dialog::backdrop { background: hsla(230 30% 3% / .7); backdrop-filter: blur(4px)
 .hide-btn:hover { background: hsl(0 70% 45%); }
 
 .go-link { display: block; text-align: center; text-decoration: none; margin-top: .8rem; }
+
+.copies { font-style: normal; font-size: .72rem; padding: .05rem .4rem; border-radius: 999px; background: hsla(190 95% 55% / .18); color: var(--accent2); cursor: help; }

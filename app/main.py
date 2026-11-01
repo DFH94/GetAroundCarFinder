@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import db, scoring, telegram, vehicle
+from .dedupe import dedupe, same_car_key
 from .config import ConfigIn, ROOT, SCRAPE_INTERVAL_MIN, load_config, min_year, save_config
 from .scrapers import SCRAPERS
 
@@ -22,7 +23,12 @@ _lock = threading.Lock()
 
 def rescore(cfg):
     rows = db.all_rows()
-    db.update_scores(scoring.compute(rows, cfg))
+    unique, dups = dedupe(rows)
+    scores = scoring.compute(unique, cfg)  # las copias no cuentan para la mediana
+    by_id = {s["id"]: s for s in scores}
+    for rep, copies in dups.items():  # las copias heredan la puntuación pero nunca son ganga aparte
+        scores += [{**by_id[rep], "id": c["id"], "is_deal": 0} for c in copies]
+    db.update_scores(scores)
 
 
 def run_scrape():
@@ -79,12 +85,23 @@ def listings():
             if r["year"] and r["km"] is not None and r["image"] and not vehicle.is_suspect(r)
             and r["year"] >= my and (r["km"] or 0) <= cfg["max_km"]
             and r["body"] in cfg["body_types"]]
+    rows, dups = dedupe(rows)
+    for r in rows:
+        extra = dups.get(r["id"], [])
+        r["copies"] = len(extra)
+        r["also_in"] = sorted({c["location"] for c in extra if c.get("location")} - {r.get("location")})
     return rows
 
 
 @app.post("/api/listings/{lid}/hide")
 def hide_listing(lid: str):
     """Descarta un anuncio (dañado / no interesa): no se vuelve a mostrar ni cuenta para medianas."""
+    rows = db.all_rows()
+    target = next((r for r in rows if r["id"] == lid), None)
+    key = same_car_key(target) if target else None
+    for r in rows:  # también sus copias en otras ciudades
+        if r["id"] == lid or (key and same_car_key(r) == key):
+            db.mark_damaged(r["id"])
     db.mark_damaged(lid)
     return {"ok": True}
 

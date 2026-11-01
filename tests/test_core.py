@@ -151,3 +151,35 @@ def test_flexicar_parses_and_paginates(monkeypatch):
     assert [o["id"] for o in out] == ["flexicar:1", "flexicar:3"]
     assert out[0]["url"] == "https://www.flexicar.es/coches-ocasion/seat-ateca_1"
     assert out[0]["title"] == "Seat Ateca 1.0" and out[0]["location"] == "Ourense"
+
+
+def _car(i, city, **kw):
+    return {"id": i, "make": "Citroën", "model": "C3 Aircross", "title": "Citroën C3 Aircross", "year": 2023,
+            "km": 50689, "price": 9390, "location": city, "images": ["a"] * kw.pop("n", 1), **kw}
+
+
+def test_dedupe_same_car_in_several_cities():
+    from app.dedupe import dedupe
+    rows = [_car("a", "Madrid"), _car("b", "Vigo", n=3), _car("c", "Leon"),
+            _car("d", "Madrid", km=50700)]
+    kept, dups = dedupe(rows)
+    assert [r["id"] for r in kept] == ["b", "d"]  # b tiene más fotos
+    assert sorted(c["id"] for c in dups["b"]) == ["a", "c"]
+
+
+def test_dedupe_round_km_requires_same_title():
+    from app.dedupe import dedupe
+    a = _car("a", "Madrid", km=20000)
+    b = _car("b", "Vigo", km=20000, title="Citroën C3 Aircross Shine")
+    kept, _ = dedupe([a, b])
+    assert len(kept) == 2
+
+
+def test_duplicates_do_not_skew_median():
+    from app.dedupe import dedupe
+    dup = [_car(f"x{i}", f"C{i}", price=10000, km=30123) for i in range(6)]
+    others = [_car(f"o{i}", "M", price=p, km=40000 + i) for i, p in enumerate([14000, 14000, 14000])]
+    kept, _ = dedupe(dup + others)
+    assert len(kept) == 4
+    out = {r["id"]: r for r in scoring.compute(kept, DEFAULT_CONFIG)}
+    assert out[kept[0]["id"]]["median_price"] == 14000

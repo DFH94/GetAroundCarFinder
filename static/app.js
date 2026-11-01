@@ -85,7 +85,7 @@ function render() {
       <div class="body">
         <div class="title">${esc(l.title || `${l.make} ${l.model}`)}</div>
         <div class="price">${fmt(l.price)} €${l.median_price ? `<small>mediana ${fmt(l.median_price)} €</small>` : ''}</div>
-        <div class="specs"><span>🚘 ${BODIES[l.body] || '—'}</span><span>⛽ ${esc(l.fuel || '—')}</span><span>📍 ${esc(l.location || '—')}</span></div>
+        <div class="specs"><span>🚘 ${BODIES[l.body] || '—'}</span><span>⛽ ${esc(l.fuel || '—')}</span><span>📍 ${esc(l.location || '—')}${l.copies ? ` <em class="copies" title="También en: ${esc((l.also_in || []).join(', '))}">+${l.copies}</em>` : ''}</span></div>
         <div class="roi"><span>Beneficio <b>${fmt(l.monthly_profit)} €/mes</b></span><span>Payback <b>${l.payback_months ?? '—'} m</b></span></div>
         <a class="btn primary small go-link" href="${esc(safeUrl(l.url) || '#')}" target="_blank" rel="noopener noreferrer">Ver en ${esc(SOURCES[l.source] || 'la web')} ↗</a>
       </div>
@@ -117,7 +117,7 @@ function openDetail(id) {
   $('#d-thumbs').querySelectorAll('img').forEach((t) => t.onclick = () => showPhoto(+t.dataset.j));
   $('#d-source').textContent = SOURCES[l.source] || l.source;
   $('#d-title').textContent = l.title || `${l.make} ${l.model}`;
-  $('#d-location').textContent = `📍 ${l.location || 'Ubicación no indicada'}`;
+  $('#d-location').textContent = `📍 ${l.location || 'Ubicación no indicada'}${l.also_in?.length ? ` · también en ${l.also_in.join(', ')}` : ''}`;
   $('#d-price').innerHTML = `${fmt(l.price)} €${l.is_deal ? '<span class="badge hot static">🔥 Ganga</span>' : ''}`;
   $('#d-year').textContent = l.year ?? '—';
   $('#d-km').textContent = `${fmt(l.km)} km`;
