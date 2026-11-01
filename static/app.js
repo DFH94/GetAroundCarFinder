@@ -5,6 +5,7 @@ const fmt = (n) => (n == null ? '—' : n.toLocaleString('es-ES'));
 const SOURCES = { wallapop: 'Wallapop', autoscout24: 'AutoScout24', cochesnet: 'coches.net', milanuncios: 'Milanuncios', flexicar: 'Flexicar' };
 const BODIES = { berlina: 'Berlina', familiar: 'Familiar', suv: 'SUV', monovolumen: 'Monovolumen' };
 let LISTINGS = [], CONFIG = null, selectedBudgets = new Set();
+let VIEW = localStorage.getItem('view') === 'list' ? 'list' : 'cards';
 
 async function api(path, opts = {}) {
   const r = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
@@ -70,7 +71,7 @@ function render() {
     <div class="stat"><b>${fmt(avg)} €</b><span>Precio medio</span></div>
     <div class="stat"><b>${best ?? '—'} m</b><span>Mejor payback GetAround</span></div>`;
   $('#empty').classList.toggle('hidden', rows.length > 0);
-  $('#grid').innerHTML = rows.slice(0, 300).map((l) => `
+  const cardHtml = (l) => `
     <article class="card ${l.is_deal ? 'deal' : ''}" data-id="${esc(l.id)}" id="car-${l.id.replace(/[^a-z0-9]/gi, '-')}" tabindex="0">
       <div class="thumb" style="background-image:url('${encodeURI(safeUrl(l.image))}')">
         <button type="button" class="hide-btn" data-hide="${esc(l.id)}" title="Ocultar: coche dañado o no me interesa" aria-label="Ocultar anuncio">🚫</button>
@@ -89,8 +90,26 @@ function render() {
         <div class="roi"><span>Beneficio <b>${fmt(l.monthly_profit)} €/mes</b></span><span>Payback <b>${l.payback_months ?? '—'} m</b></span></div>
         <a class="btn primary small go-link" href="${esc(safeUrl(l.url) || '#')}" target="_blank" rel="noopener noreferrer">Ver en ${esc(SOURCES[l.source] || 'la web')} ↗</a>
       </div>
-    </article>`).join('');
-  $('#grid').querySelectorAll('.card').forEach((c) => c.onclick = () => openDetail(c.dataset.id));
+    </article>`;
+  const rowHtml = (l) => `
+    <article class="row ${l.is_deal ? 'deal' : ''}" data-id="${esc(l.id)}" tabindex="0">
+      <div class="r-thumb" style="background-image:url('${encodeURI(safeUrl(l.image))}')"></div>
+      <div class="r-main">
+        <div class="title">${l.is_deal ? '🔥 ' : ''}${esc(l.title || `${l.make} ${l.model}`)}</div>
+        <div class="specs"><span>${esc(SOURCES[l.source] || l.source)}</span><span>📅 ${l.year ?? '—'}</span><span>🛣 ${fmt(l.km)} km</span>
+          <span>⛽ ${esc(l.fuel || '—')}</span><span>📍 ${esc(l.location || '—')}${l.copies ? ` <em class="copies" title="También en: ${esc((l.also_in || []).join(', '))}">+${l.copies}</em>` : ''}</span></div>
+      </div>
+      <div class="r-price"><b>${fmt(l.price)} €</b>${l.is_deal ? `<small>-${l.discount_pct}% vs mediana</small>` : (l.median_price ? `<small>mediana ${fmt(l.median_price)} €</small>` : '')}</div>
+      <div class="r-roi"><span>Beneficio <b>${fmt(l.monthly_profit)} €/mes</b></span><span>Payback <b>${l.payback_months ?? '—'} m</b></span></div>
+      <div class="r-actions">
+        <a class="btn primary small go-link" href="${esc(safeUrl(l.url) || '#')}" target="_blank" rel="noopener noreferrer">Ver ↗</a>
+        <button type="button" class="hide-btn" data-hide="${esc(l.id)}" title="Ocultar: coche dañado o no me interesa" aria-label="Ocultar anuncio">🚫</button>
+      </div>
+    </article>`;
+  $('#grid').className = VIEW === 'list' ? 'list' : 'grid';
+  $('#grid').innerHTML = rows.slice(0, 300).map(VIEW === 'list' ? rowHtml : cardHtml).join('');
+  document.querySelectorAll('#view-toggle button').forEach((b) => b.classList.toggle('on', b.dataset.view === VIEW));
+  $('#grid').querySelectorAll('[data-id]').forEach((c) => c.onclick = () => openDetail(c.dataset.id));
   $('#grid').querySelectorAll('.go-link').forEach((a) => a.onclick = (e) => e.stopPropagation());
   $('#grid').querySelectorAll('.hide-btn').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
@@ -130,6 +149,7 @@ function openDetail(id) {
   $('#d-link').href = safeUrl(l.url) || '#';
   showPhoto(0);
   $('#detail').showModal();
+  $('#detail').scrollTop = 0;
 }
 $('#d-prev').onclick = () => showPhoto(PHOTO - 1);
 $('#d-next').onclick = () => showPhoto(PHOTO + 1);
@@ -197,5 +217,91 @@ $('#save-settings').onclick = saveSettings;
 $('#tg-test').onclick = async () => { const r = await api('/api/telegram/test', { method: 'POST' }); alert(r.ok ? 'Mensaje enviado ✅' : 'No se pudo enviar. Revisa el .env'); };
 let t; const deb = () => { clearTimeout(t); t = setTimeout(render, 200); };
 ['#f-text', '#f-source', '#f-fuel', '#f-body', '#f-maxkm', '#f-minyear', '#f-sort', '#f-deals'].forEach((s) => $(s).addEventListener('input', deb));
+
+// ---- Vista tarjetas / lista ----
+document.querySelectorAll('#view-toggle button').forEach((b) => b.onclick = () => {
+  VIEW = b.dataset.view; localStorage.setItem('view', VIEW); render();
+});
+
+// ---- Pestañas ----
+document.querySelectorAll('.tab').forEach((t) => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === t));
+  $('#tab-cars').classList.toggle('hidden', t.dataset.tab !== 'cars');
+  $('#tab-prices').classList.toggle('hidden', t.dataset.tab !== 'prices');
+  if (t.dataset.tab === 'prices') loadModels();
+});
+
+// ---- Precios por modelo ----
+let MODELS = [];
+async function loadModels() {
+  try { MODELS = await api('/api/models'); } catch { MODELS = []; }
+  fillModels();
+}
+function fillModels() {
+  const q = $('#p-search').value.trim().toLowerCase(), cur = $('#p-model').value;
+  const list = MODELS.filter((m) => !q || m.label.toLowerCase().includes(q)).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  $('#p-model').innerHTML = list.map((m) =>
+    `<option value="${esc(m.key)}">${esc(m.label)} · ${m.count} ${m.count === 1 ? 'anuncio' : 'anuncios'} · desde ${fmt(m.min_price)} €</option>`).join('')
+    || '<option value="">Sin modelos</option>';
+  if (list.some((m) => m.key === cur)) $('#p-model').value = cur;
+  loadPrices();
+}
+
+const dayLabel = (d) => new Date(d + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+
+function lineChart(points) {
+  const W = 720, H = 260, L = 56, R = 16, T = 14, B = 30;
+  const t = (d) => new Date(d + 'T00:00:00').getTime();
+  const xs = points.map((p) => t(p.day)), x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const vals = points.flatMap((p) => [p.min_price, p.median_price]);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = Math.max((hi - lo) * 0.15, hi * 0.03); lo = Math.max(0, lo - pad); hi += pad;
+  const X = (d) => (x1 === x0 ? (L + W - R) / 2 : L + ((t(d) - x0) / (x1 - x0)) * (W - L - R));
+  const Y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+  const ticks = [0, 1, 2, 3].map((i) => lo + ((hi - lo) * i) / 3);
+  const path = (k) => points.map((p, i) => `${i ? 'L' : 'M'}${X(p.day).toFixed(1)},${Y(p[k]).toFixed(1)}`).join('');
+  const dots = (k, cls, label) => points.map((p) =>
+    `<circle class="${cls}" cx="${X(p.day).toFixed(1)}" cy="${Y(p[k]).toFixed(1)}" r="4"><title>${esc(dayLabel(p.day))} · ${label}: ${fmt(p[k])} €</title></circle>`).join('');
+  const xl = points.length > 1 ? [points[0], points[points.length - 1]] : [points[0]];
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+    ${ticks.map((v) => `<line class="grid-line" x1="${L}" x2="${W - R}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/><text class="axis" x="${L - 8}" y="${(Y(v) + 4).toFixed(1)}" text-anchor="end">${fmt(Math.round(v / 10) * 10)} €</text>`).join('')}
+    ${xl.map((p, i) => `<text class="axis" x="${X(p.day).toFixed(1)}" y="${H - 8}" text-anchor="${points.length === 1 ? 'middle' : i ? 'end' : 'start'}">${esc(dayLabel(p.day))}</text>`).join('')}
+    ${points.length > 1 ? `<path class="l-med" d="${path('median_price')}"/><path class="l-min" d="${path('min_price')}"/>` : ''}
+    ${dots('median_price', 'd-med', 'mediana')}${dots('min_price', 'd-min', 'más barato')}
+  </svg>
+  <div class="chart-legend"><span><i style="background:var(--accent2)"></i>Precio más barato</span><span><i style="background:var(--accent)"></i>Precio mediano</span></div>`;
+}
+
+async function loadPrices() {
+  const key = $('#p-model').value;
+  if (!key) { $('#p-chart').innerHTML = ''; $('#p-kpis').innerHTML = ''; $('#p-cheapest').innerHTML = ''; $('#p-note').textContent = 'No hay modelos con anuncios todavía.'; return; }
+  let d;
+  try { d = await api(`/api/price-history?model=${encodeURIComponent(key)}`); } catch { $('#p-note').textContent = 'No se pudo cargar el histórico.'; return; }
+  const pts = d.points;
+  if (pts.length) {
+    const last = pts[pts.length - 1], first = pts[0];
+    const best = pts.reduce((m, p) => (p.min_price < m.min_price ? p : m), pts[0]);
+    const delta = last.min_price - first.min_price, pct = first.min_price ? Math.round((delta / first.min_price) * 1000) / 10 : 0;
+    const isNewLow = pts.length > 1 && last.min_price <= best.min_price && last.min_price < first.min_price;
+    $('#p-kpis').innerHTML = `
+      <div class="kpi"><span>Más barato hoy</span><b>${fmt(last.min_price)} €</b></div>
+      <div class="kpi"><span>Mínimo histórico</span><b>${fmt(best.min_price)} €</b></div>
+      <div class="kpi"><span>Cambio desde ${esc(dayLabel(first.day))}</span><b>${pts.length > 1 ? `${delta > 0 ? '+' : ''}${fmt(delta)} € (${pct}%)` : '—'}</b></div>
+      <div class="kpi"><span>Anuncios únicos</span><b>${fmt(last.count)}</b></div>`;
+    $('#p-chart').innerHTML = lineChart(pts);
+    $('#p-note').textContent = isNewLow ? '🔥 ¡Hoy está en su precio más bajo registrado!'
+      : pts.length < 2 ? 'Solo hay un día registrado: el gráfico se irá completando con cada día que se haga una búsqueda.' : '';
+  } else {
+    $('#p-kpis').innerHTML = ''; $('#p-chart').innerHTML = '';
+    $('#p-note').textContent = 'Aún no hay histórico para este modelo: se guarda al terminar cada búsqueda.';
+  }
+  $('#p-cheapest').innerHTML = d.cheapest.map((c) => `
+    <div class="cheap"><span>${esc(c.title)} · ${c.year ?? '—'} · ${fmt(c.km)} km · ${esc(c.location || '—')}</span>
+      <b>${fmt(c.price)} €</b>
+      <a class="btn ghost small" href="${esc(safeUrl(c.url) || '#')}" target="_blank" rel="noopener noreferrer">Ver en ${esc(SOURCES[c.source] || 'la web')} ↗</a></div>`).join('')
+    || '<p class="muted">Sin anuncios actuales.</p>';
+}
+$('#p-model').addEventListener('change', loadPrices);
+$('#p-search').addEventListener('input', fillModels);
 
 load(); refreshStatus(); setInterval(refreshStatus, 4000);

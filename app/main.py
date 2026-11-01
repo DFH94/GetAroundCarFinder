@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import db, scoring, telegram, vehicle
 from .dedupe import dedupe, same_car_key
+from .history import model_key, snapshots
 from .config import ConfigIn, ROOT, SCRAPE_INTERVAL_MIN, load_config, min_year, save_config
 from .scrapers import SCRAPERS
 
@@ -21,6 +22,13 @@ STATE = {"running": False, "last_run": None, "last_new": 0, "last_deals": 0}
 _lock = threading.Lock()
 
 
+def visible_rows(cfg):
+    my = min_year(cfg)
+    return [r for r in db.all_rows()
+            if r["year"] and r["km"] is not None and r["image"] and not vehicle.is_suspect(r)
+            and r["year"] >= my and r["km"] <= cfg["max_km"] and r["body"] in cfg["body_types"]]
+
+
 def rescore(cfg):
     rows = db.all_rows()
     unique, dups = dedupe(rows)
@@ -29,6 +37,7 @@ def rescore(cfg):
     for rep, copies in dups.items():  # las copias heredan la puntuación pero nunca son ganga aparte
         scores += [{**by_id[rep], "id": c["id"], "is_deal": 0} for c in copies]
     db.update_scores(scores)
+    db.save_snapshots(snapshots(dedupe(visible_rows(cfg))[0]))
 
 
 def run_scrape():
@@ -79,12 +88,7 @@ def startup():
 
 @app.get("/api/listings")
 def listings():
-    cfg = load_config()
-    my = min_year(cfg)
-    rows = [r for r in db.all_rows()
-            if r["year"] and r["km"] is not None and r["image"] and not vehicle.is_suspect(r)
-            and r["year"] >= my and (r["km"] or 0) <= cfg["max_km"]
-            and r["body"] in cfg["body_types"]]
+    rows = visible_rows(load_config())
     rows, dups = dedupe(rows)
     for r in rows:
         extra = dups.get(r["id"], [])
@@ -104,6 +108,24 @@ def hide_listing(lid: str):
             db.mark_damaged(r["id"])
     db.mark_damaged(lid)
     return {"ok": True}
+
+
+@app.get("/api/models")
+def models():
+    """Modelos con anuncios visibles, para el selector del gráfico de precios."""
+    rows, _ = dedupe(visible_rows(load_config()))
+    out = {s["model_key"]: {"key": s["model_key"], "label": s["label"], "count": s["count"],
+                            "min_price": s["min_price"]} for s in snapshots(rows)}
+    return sorted(out.values(), key=lambda m: m["label"].lower())
+
+
+@app.get("/api/price-history")
+def price_history(model: str):
+    rows, _ = dedupe(visible_rows(load_config()))
+    cheapest = sorted((r for r in rows if model_key(r) == model), key=lambda r: r["price"])[:8]
+    return {"points": db.price_history(model),
+            "cheapest": [{k: r[k] for k in ("id", "title", "price", "year", "km", "location", "source", "url", "image")}
+                         for r in cheapest]}
 
 
 @app.get("/api/body-types")

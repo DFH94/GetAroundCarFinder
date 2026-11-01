@@ -27,6 +27,12 @@
   </header>
 
   <main>
+    <nav class="tabs" role="tablist">
+      <button class="tab on" data-tab="cars" role="tab">🚗 Coches</button>
+      <button class="tab" data-tab="prices" role="tab">📈 Precios por modelo</button>
+    </nav>
+
+    <div id="tab-cars">
     <section class="stats" id="stats"></section>
 
     <section class="panel filters">
@@ -50,11 +56,32 @@
           <option value="recent">🆕 Más recientes</option>
         </select>
         <label class="toggle"><input id="f-deals" type="checkbox" /> <span>Solo gangas</span></label>
+        <div class="seg" id="view-toggle" role="group" aria-label="Tipo de vista">
+          <button type="button" data-view="cards" title="Ver como tarjetas" aria-label="Tarjetas">▦</button>
+          <button type="button" data-view="list" title="Ver como lista" aria-label="Lista">☰</button>
+        </div>
       </div>
     </section>
 
     <section id="grid" class="grid"></section>
     <p id="empty" class="empty hidden">No hay coches con estos filtros. Pulsa <b>Buscar ahora</b> o amplía los criterios.</p>
+    </div>
+
+    <section id="tab-prices" class="hidden">
+      <div class="panel">
+        <div class="price-controls">
+          <input id="p-search" type="search" placeholder="Buscar modelo…" />
+          <select id="p-model" aria-label="Modelo"></select>
+        </div>
+        <div id="p-kpis" class="kpis small"></div>
+        <div id="p-chart" class="chart" role="img" aria-label="Evolución del precio del modelo"></div>
+        <p id="p-note" class="muted"></p>
+      </div>
+      <div class="panel">
+        <h3 class="sec-title">Más baratos ahora</h3>
+        <div id="p-cheapest" class="cheap-list"></div>
+      </div>
+    </section>
   </main>
 
   <dialog id="detail" class="detail">

@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS listings (
     notified INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS ix_mm ON listings(make, model, year);
+CREATE TABLE IF NOT EXISTS price_history (
+    day TEXT, model_key TEXT, label TEXT,
+    min_price INTEGER, median_price INTEGER, count INTEGER,
+    PRIMARY KEY (day, model_key)
+);
 """
 
 
@@ -96,3 +101,22 @@ def mark_notified(lid: str):
 def mark_damaged(lid: str):
     with conn() as c:
         c.execute("UPDATE listings SET damaged=1, is_deal=0 WHERE id=?", (lid,))
+
+
+def save_snapshots(snaps):
+    """Un registro por día y modelo: conserva el mínimo del día y la última mediana."""
+    with conn() as c:
+        c.executemany(
+            "INSERT INTO price_history (day, model_key, label, min_price, median_price, count) "
+            "VALUES (:day, :model_key, :label, :min_price, :median_price, :count) "
+            "ON CONFLICT(day, model_key) DO UPDATE SET label=excluded.label, "
+            "min_price=MIN(min_price, excluded.min_price), median_price=excluded.median_price, count=excluded.count",
+            snaps,
+        )
+
+
+def price_history(model_key: str):
+    with conn() as c:
+        return [dict(r) for r in c.execute(
+            "SELECT day, min_price, median_price, count FROM price_history WHERE model_key=? ORDER BY day",
+            (model_key,))]

@@ -183,3 +183,19 @@ def test_duplicates_do_not_skew_median():
     assert len(kept) == 4
     out = {r["id"]: r for r in scoring.compute(kept, DEFAULT_CONFIG)}
     assert out[kept[0]["id"]]["median_price"] == 14000
+
+
+def test_snapshots_and_history_keep_daily_minimum(tmp_path, monkeypatch):
+    from app import db
+    from app.history import model_key, snapshots
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    rows = [{"make": "Seat", "model": "Ateca 1.0", "price": p} for p in (15000, 13000, 14000)]
+    rows.append({"make": "Seat", "model": "Ateca", "price": 12000})
+    db.save_snapshots(snapshots(rows, "2026-11-01"))
+    # mismo día, una búsqueda posterior ya sin el más barato: se conserva el mínimo del día
+    db.save_snapshots(snapshots([{"make": "SEAT", "model": "ateca", "price": 14000}], "2026-11-01"))
+    db.save_snapshots(snapshots([{"make": "Seat", "model": "Ateca", "price": 11000}], "2026-11-02"))
+    h = db.price_history(model_key(rows[0]))
+    assert [(p["day"], p["min_price"]) for p in h] == [("2026-11-01", 12000), ("2026-11-02", 11000)]
+    assert h[0]["median_price"] == 14000 and h[0]["count"] == 1
