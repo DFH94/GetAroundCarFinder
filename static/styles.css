@@ -128,3 +128,5 @@ dialog::backdrop { background: hsla(230 30% 3% / .7); backdrop-filter: blur(4px)
   width: 2rem; height: 2rem; background: hsla(230 30% 7% / .75); color: var(--text); opacity: 0; transition: opacity .15s; }
 .card:hover .hide-btn, .hide-btn:focus-visible { opacity: 1; }
 .hide-btn:hover { background: hsl(0 70% 45%); }
+
+.go-link { display: block; text-align: center; text-decoration: none; margin-top: .8rem; }

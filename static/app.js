@@ -87,9 +87,11 @@ function render() {
         <div class="price">${fmt(l.price)} €${l.median_price ? `<small>mediana ${fmt(l.median_price)} €</small>` : ''}</div>
         <div class="specs"><span>🚘 ${BODIES[l.body] || '—'}</span><span>⛽ ${esc(l.fuel || '—')}</span><span>📍 ${esc(l.location || '—')}</span></div>
         <div class="roi"><span>Beneficio <b>${fmt(l.monthly_profit)} €/mes</b></span><span>Payback <b>${l.payback_months ?? '—'} m</b></span></div>
+        <a class="btn primary small go-link" href="${esc(safeUrl(l.url) || '#')}" target="_blank" rel="noopener noreferrer">Ver en ${esc(SOURCES[l.source] || 'la web')} ↗</a>
       </div>
     </article>`).join('');
   $('#grid').querySelectorAll('.card').forEach((c) => c.onclick = () => openDetail(c.dataset.id));
+  $('#grid').querySelectorAll('.go-link').forEach((a) => a.onclick = (e) => e.stopPropagation());
   $('#grid').querySelectorAll('.hide-btn').forEach((b) => b.onclick = async (e) => {
     e.stopPropagation();
     try { await api(`/api/listings/${encodeURIComponent(b.dataset.hide)}/hide`, { method: 'POST' }); } catch { return; }

@@ -79,9 +79,10 @@ def test_suspect_listings():
     y = date.today().year
     assert vehicle.implausibly_cheap({"year": y - 2, "price": 5700})
     assert not vehicle.implausibly_cheap({"year": y - 2, "price": 13000})
-    assert not vehicle.implausibly_cheap({"year": y - 6, "price": 5000})
-    assert vehicle.is_suspect({"year": y - 6, "price": 5000, "discount_pct": 40})
-    assert not vehicle.is_suspect({"year": y - 6, "price": 5000, "discount_pct": 20})
+    assert vehicle.implausibly_cheap({"year": y - 4, "price": 7000})  # Kona 2022 siniestrado
+    assert not vehicle.implausibly_cheap({"year": y - 7, "price": 5000})
+    assert vehicle.is_suspect({"year": y - 7, "price": 5000, "discount_pct": 40})
+    assert not vehicle.is_suspect({"year": y - 7, "price": 5000, "discount_pct": 20})
 
 
 def test_wreck_price_is_not_a_deal():

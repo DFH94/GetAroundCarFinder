@@ -123,7 +123,7 @@ def implausibly_cheap(listing: dict) -> bool:
     if not (year and price):
         return False
     age = date.today().year - year
-    floor = 12000 if age <= 1 else 9000 if age <= 3 else 7000 if age <= 4 else 0
+    floor = 14000 if age <= 1 else 11000 if age <= 3 else 9500 if age <= 4 else 7000 if age <= 5 else 0
     return price < floor
 
 
