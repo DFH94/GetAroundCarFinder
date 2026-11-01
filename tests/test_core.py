@@ -121,3 +121,33 @@ def test_cochesnet_parses_and_filters(monkeypatch):
     out = s.search(5000, 9000, 2022, 60000)
     assert [o["id"] for o in out] == ["cochesnet:1"]
     assert out[0]["image"] == "https://a/1.jpg" and out[0]["url"] == "https://www.coches.net/x-1.aspx"
+
+
+def test_flexicar_parses_and_paginates(monkeypatch):
+    from app.scrapers.flexicar import FlexicarScraper
+
+    def v(i, **kw):
+        return {"id": i, "brand": "Seat", "model": "Ateca", "version": "1.0", "year": 2023, "km": 20000,
+                "price": 14000, "fuel": "Gasolina", "transmission": "Manual", "carDealership": "Ourense",
+                "slug": f"seat-ateca_{i}", "image": f"https://f/{i}.jpg", "images": [f"https://f/{i}.jpg"], **kw}
+
+    pages = iter([{"hasNext": True, "results": [v(1), v(2, reserved=True)]},
+                  {"hasNext": False, "results": [v(3)]}])
+
+    class R:
+        def __init__(self, d):
+            self.d = d
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self.d
+
+    s = FlexicarScraper()
+    monkeypatch.setattr(s, "polite_sleep", lambda: None)
+    monkeypatch.setattr(s.client, "get", lambda *a, **k: R(next(pages)))
+    out = s.search(11000, 15000, 2022, 60000)
+    assert [o["id"] for o in out] == ["flexicar:1", "flexicar:3"]
+    assert out[0]["url"] == "https://www.flexicar.es/coches-ocasion/seat-ateca_1"
+    assert out[0]["title"] == "Seat Ateca 1.0" and out[0]["location"] == "Ourense"
