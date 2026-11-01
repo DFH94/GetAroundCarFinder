@@ -72,3 +72,51 @@ def test_median_year_tolerance_and_no_data():
 ])
 def test_is_damaged(title, desc, expected):
     assert vehicle.is_damaged({"title": title, "description": desc}) is expected
+
+
+def test_suspect_listings():
+    from datetime import date
+    y = date.today().year
+    assert vehicle.implausibly_cheap({"year": y - 2, "price": 5700})
+    assert not vehicle.implausibly_cheap({"year": y - 2, "price": 13000})
+    assert not vehicle.implausibly_cheap({"year": y - 6, "price": 5000})
+    assert vehicle.is_suspect({"year": y - 6, "price": 5000, "discount_pct": 40})
+    assert not vehicle.is_suspect({"year": y - 6, "price": 5000, "discount_pct": 20})
+
+
+def test_wreck_price_is_not_a_deal():
+    from datetime import date
+    y = date.today().year
+    rows = [{"id": str(i), "make": "Seat", "model": "Arona", "year": y - 2, "price": p}
+            for i, p in enumerate([14000, 14000, 14000, 5000])]
+    out = {r["id"]: r for r in scoring.compute(rows, DEFAULT_CONFIG)}
+    assert out["3"]["is_deal"] == 0
+
+
+def _cn_page(items):
+    import json
+    props = json.dumps({"initialResults": {"items": items}})
+    return "<html><script>window.__INITIAL_PROPS__ = JSON.parse(" + json.dumps(props) + ");</script></html>"
+
+
+class _Resp:
+    def __init__(self, text):
+        self.text = text
+
+    def raise_for_status(self):
+        pass
+
+
+def test_cochesnet_parses_and_filters(monkeypatch):
+    from app.scrapers.cochesnet import CochesNetScraper
+    good = {"id": "1", "make": "JEEP", "model": "Renegade", "title": "JEEP Renegade", "year": 2023, "km": 20000,
+            "price": 8000, "fuelType": "Gasolina", "photos": ["https://a/1.jpg"], "url": "/x-1.aspx",
+            "location": {"mainProvince": "Madrid"}}
+    old = {**good, "id": "2", "year": 2015}
+    s = CochesNetScraper()
+    monkeypatch.setattr(s, "polite_sleep", lambda: None)
+    pages = iter([_cn_page([good, old]), "<html>Ups, verificación anti-bot</html>"])
+    monkeypatch.setattr(s.client, "get", lambda *a, **k: _Resp(next(pages)))
+    out = s.search(5000, 9000, 2022, 60000)
+    assert [o["id"] for o in out] == ["cochesnet:1"]
+    assert out[0]["image"] == "https://a/1.jpg" and out[0]["url"] == "https://www.coches.net/x-1.aspx"

@@ -1,6 +1,7 @@
 """Clasificación de carrocería: solo berlinas o superior (berlina, familiar, SUV, monovolumen).
 Excluye motos, quads, furgonetas, microcoches, utilitarios pequeños, etc."""
 import re
+from datetime import date
 import unicodedata
 
 BODY_TYPES = {
@@ -111,3 +112,21 @@ def is_damaged(listing: dict) -> bool:
     """True si el título o la descripción indican un coche accidentado, averiado o para reparar."""
     text = norm(f"{listing.get('title') or ''}. {listing.get('description') or ''}")
     return bool(_DAMAGE.search(_NOT_DAMAGE.sub(" ", text)))
+
+
+MAX_PLAUSIBLE_DISCOUNT_PCT = 35
+
+
+def implausibly_cheap(listing: dict) -> bool:
+    """Coches recientes a un precio demasiado bajo para su edad: casi siempre siniestrados."""
+    year, price = listing.get("year"), listing.get("price")
+    if not (year and price):
+        return False
+    age = date.today().year - year
+    floor = 12000 if age <= 1 else 9000 if age <= 3 else 7000 if age <= 4 else 0
+    return price < floor
+
+
+def is_suspect(listing: dict) -> bool:
+    """Precio imposible o descuento exagerado frente a la mediana: se oculta y no es ganga."""
+    return implausibly_cheap(listing) or (listing.get("discount_pct") or 0) >= MAX_PLAUSIBLE_DISCOUNT_PCT

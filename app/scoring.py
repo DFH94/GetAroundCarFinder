@@ -2,6 +2,8 @@
 from collections import defaultdict
 from statistics import median
 
+from . import vehicle
+
 
 def _norm(s):
     return (s or "").strip().lower()
@@ -45,7 +47,8 @@ def compute(rows: list[dict], cfg: dict) -> list[dict]:
         comps = comparables(r)
         med = int(median(comps)) if comps else None
         disc = round((med - price) / med * 100, 1) if med and price else None
-        is_deal = int(bool(disc is not None and disc >= cfg["deal_threshold_pct"]))
+        is_deal = int(bool(disc is not None and disc >= cfg["deal_threshold_pct"]
+                           and not vehicle.implausibly_cheap(r) and disc < vehicle.MAX_PLAUSIBLE_DISCOUNT_PCT))
 
         revenue = hourly_rate(price) * eco["rented_hours_month"]
         net = revenue * (1 - eco["getaround_commission_pct"] / 100) - eco["monthly_fixed_costs"]
