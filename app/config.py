@@ -22,12 +22,12 @@ SCRAPE_INTERVAL_MIN = int(os.getenv("SCRAPE_INTERVAL_MIN", "60"))
 DEFAULT_CONFIG = {
     # Varios presupuestos: se busca en cada rango
     "budgets": [
-        {"name": "Económico", "min": 11000, "max": 15000, "active": True},
-        {"name": "Medio", "min": 15000, "max": 20000, "active": True},
-        {"name": "Alto", "min": 20000, "max": 28000, "active": False},
+        {"name": "Económico", "min": 6000, "max": 11000, "active": True},
+        {"name": "Medio", "min": 11000, "max": 16000, "active": True},
+        {"name": "Alto", "min": 16000, "max": 22000, "active": False},
     ],
     # Seminuevo
-    "max_age_years": 4,
+    "max_age_years": 6,
     "max_km": 60000,
     # Solo berlinas o superior (sin utilitarios, motos, quads, furgonetas...)
     "body_types": ["berlina", "familiar", "suv", "monovolumen"],
