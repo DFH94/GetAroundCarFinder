@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GetAround Car Finder · Gangas de coches seminuevos en España</title>
+  <meta name="description" content="Encuentra coches seminuevos baratos en Wallapop, coches.net, AutoScout24 y Milanuncios para rentabilizarlos en GetAround." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="bg-glow"></div>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">🚗</div>
+      <div>
+        <h1>GetAround <span>Car Finder</span></h1>
+        <p class="sub">Gangas seminuevas en toda España</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span id="status" class="status-pill">—</span>
+      <button id="btn-settings" class="btn ghost">⚙️ Ajustes</button>
+      <button id="btn-scrape" class="btn primary">🔍 Buscar ahora</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="stats" id="stats"></section>
+
+    <section class="panel filters">
+      <div class="budget-row">
+        <span class="label">Presupuestos</span>
+        <div id="budget-chips" class="chips"></div>
+      </div>
+      <div class="filter-grid">
+        <input id="f-text" type="search" placeholder="Marca, modelo..." />
+        <select id="f-source"><option value="">Todos los portales</option></select>
+        <select id="f-fuel"><option value="">Cualquier combustible</option></select>
+        <select id="f-body"><option value="">Toda carrocería</option></select>
+        <input id="f-maxkm" type="number" placeholder="Km máx." />
+        <input id="f-minyear" type="number" placeholder="Año mín." />
+        <select id="f-sort">
+          <option value="price_asc">💶 Más baratos</option>
+          <option value="discount_desc">🔥 Mayor descuento</option>
+          <option value="payback_asc">📈 Payback más rápido</option>
+          <option value="km_asc">🛣 Menos km</option>
+          <option value="year_desc">📅 Más nuevos</option>
+          <option value="recent">🆕 Más recientes</option>
+        </select>
+        <label class="toggle"><input id="f-deals" type="checkbox" /> <span>Solo gangas</span></label>
+      </div>
+    </section>
+
+    <section id="grid" class="grid"></section>
+    <p id="empty" class="empty hidden">No hay coches con estos filtros. Pulsa <b>Buscar ahora</b> o amplía los criterios.</p>
+  </main>
+
+  <dialog id="detail" class="detail">
+    <button class="close" id="detail-close" aria-label="Cerrar">✕</button>
+    <div class="gallery">
+      <img id="d-img" alt="Foto del coche" />
+      <button class="nav prev" id="d-prev" aria-label="Anterior">‹</button>
+      <button class="nav next" id="d-next" aria-label="Siguiente">›</button>
+      <span class="counter" id="d-counter"></span>
+    </div>
+    <div class="thumbs" id="d-thumbs"></div>
+    <div class="d-info">
+      <div class="d-head">
+        <div>
+          <span class="badge src static" id="d-source"></span>
+          <h2 id="d-title"></h2>
+          <p class="muted" id="d-location"></p>
+        </div>
+        <div class="d-price" id="d-price"></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><span>Año</span><b id="d-year"></b></div>
+        <div class="kpi"><span>Kilómetros</span><b id="d-km"></b></div>
+        <div class="kpi"><span>Carrocería</span><b id="d-body"></b></div>
+        <div class="kpi"><span>Combustible</span><b id="d-fuel"></b></div>
+        <div class="kpi"><span>Cambio</span><b id="d-gear"></b></div>
+        <div class="kpi"><span>Beneficio/mes</span><b id="d-profit"></b></div>
+        <div class="kpi"><span>Payback</span><b id="d-payback"></b></div>
+        <div class="kpi"><span>vs. mediana</span><b id="d-disc"></b></div>
+      </div>
+      <a id="d-link" class="btn primary block" target="_blank" rel="noopener">Ver anuncio original ↗</a>
+    </div>
+  </dialog>
+
+  <dialog id="settings">
+    <form method="dialog" class="settings-form" id="settings-form">
+      <h2>Ajustes</h2>
+      <h3>Presupuestos</h3>
+      <div id="budget-editor"></div>
+      <button type="button" id="add-budget" class="btn ghost small">+ Añadir presupuesto</button>
+      <h3>Seminuevo</h3>
+      <div class="row2">
+        <label>Antigüedad máx. (años)<input id="s-age" type="number" /></label>
+        <label>Km máx.<input id="s-km" type="number" /></label>
+      </div>
+      <h3>Ganga y negocio</h3>
+      <div class="row2">
+        <label>% bajo mediana = ganga<input id="s-deal" type="number" /></label>
+        <label>Horas alquiladas/mes<input id="s-hours" type="number" /></label>
+        <label>Comisión GetAround %<input id="s-comm" type="number" /></label>
+        <label>Costes fijos €/mes<input id="s-costs" type="number" /></label>
+      </div>
+      <h3>Carrocerías (berlina o superior)</h3>
+      <div id="s-bodies" class="chips"></div>
+      <h3>Portales</h3>
+      <div id="s-sources" class="chips"></div>
+      <h3>Telegram</h3>
+      <p class="muted" id="tg-state"></p>
+      <div class="dialog-actions">
+        <button type="button" id="tg-test" class="btn ghost">Enviar prueba</button>
+        <button value="cancel" class="btn ghost">Cancelar</button>
+        <button type="button" id="save-settings" class="btn primary">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
