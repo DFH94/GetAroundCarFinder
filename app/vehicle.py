@@ -94,3 +94,20 @@ def classify(listing: dict) -> str | None:
             if re.search(rf"(^|\s){re.escape(m)}(\s|$)", text):
                 return btype
     return None
+
+
+# Negaciones que no indican daño ("sin accidentes", "no vendemos piezas"...)
+_NOT_DAMAGE = re.compile(
+    r"\b(sin|libre de|ningun|ninguna|no (?:ha tenido|ha sufrido|tiene|vendemos|vendo))\s+(?:\w+\s+){0,2}"
+    r"(?:accident|golpe|siniestr|aver|dano|pieza|despiece)\w*")
+_DAMAGE = re.compile(
+    r"\b(accidentad\w*|siniestr\w*|averiad\w*|averia\w*|inundad\w*|golpe\w*|chocad\w*|choque|"
+    r"danad\w*|danos|incendiad\w*|quemad\w*|para (?:restaurar|reparar)|restaurar|despiece|gripad\w*|"
+    r"fundid\w*|no (?:arranca|funciona|anda)|abollad\w*|airbags? (?:saltad\w*|disparad\w*)|"
+    r"baja (?:temporal|definitiva)|motor (?:roto|malo))\b")
+
+
+def is_damaged(listing: dict) -> bool:
+    """True si el título o la descripción indican un coche accidentado, averiado o para reparar."""
+    text = norm(f"{listing.get('title') or ''}. {listing.get('description') or ''}")
+    return bool(_DAMAGE.search(_NOT_DAMAGE.sub(" ", text)))

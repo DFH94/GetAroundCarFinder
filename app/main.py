@@ -39,6 +39,9 @@ def run_scrape():
                                      min_year=min_year(cfg), max_km=cfg["max_km"]):
                     if not (l.get("price") and l.get("year") and l.get("km") is not None and l.get("image")):
                         continue
+                    if vehicle.is_damaged(l):
+                        db.mark_damaged(l["id"])
+                        continue
                     btype = vehicle.classify(l)
                     if btype and btype in cfg["body_types"]:
                         l["body"] = btype
@@ -60,6 +63,9 @@ def run_scrape():
 @app.on_event("startup")
 def startup():
     db.init()
+    for r in db.all_rows():  # los ya guardados: se revisa el título
+        if vehicle.is_damaged(r):
+            db.mark_damaged(r["id"])
     sched = BackgroundScheduler()
     sched.add_job(run_scrape, "interval", minutes=SCRAPE_INTERVAL_MIN, next_run_time=datetime.now())
     sched.start()

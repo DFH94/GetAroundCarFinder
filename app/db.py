@@ -43,6 +43,8 @@ def init():
             c.execute("ALTER TABLE listings ADD COLUMN body TEXT")
         if "images" not in cols:
             c.execute("ALTER TABLE listings ADD COLUMN images TEXT")
+        if "damaged" not in cols:
+            c.execute("ALTER TABLE listings ADD COLUMN damaged INTEGER DEFAULT 0")
 
 
 def upsert(listing: dict) -> bool:
@@ -71,7 +73,7 @@ def upsert(listing: dict) -> bool:
 
 def all_rows():
     with conn() as c:
-        rows = [dict(r) for r in c.execute("SELECT * FROM listings")]
+        rows = [dict(r) for r in c.execute("SELECT * FROM listings WHERE COALESCE(damaged, 0) = 0")]
     for r in rows:
         r["images"] = json.loads(r.get("images") or "[]") or ([r["image"]] if r.get("image") else [])
     return rows
@@ -89,3 +91,8 @@ def update_scores(rows):
 def mark_notified(lid: str):
     with conn() as c:
         c.execute("UPDATE listings SET notified=1 WHERE id=?", (lid,))
+
+
+def mark_damaged(lid: str):
+    with conn() as c:
+        c.execute("UPDATE listings SET damaged=1, is_deal=0 WHERE id=?", (lid,))

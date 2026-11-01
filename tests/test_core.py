@@ -59,3 +59,16 @@ def test_median_year_tolerance_and_no_data():
     assert out["Ateca0"]["median_price"] == 10000
     lonely = scoring.compute(_rows("Raro", [9000]), DEFAULT_CONFIG)[0]
     assert lonely["median_price"] is None and lonely["is_deal"] == 0
+
+
+@pytest.mark.parametrize("title,desc,expected", [
+    ("VW Tiguan 2022 ACCIDENTADO", "", True),
+    ("Skoda Octavia 2023 , Motor averiado", "", True),
+    ("Peugeot e-2008 2023", "coche estaba dentro inundado hasta los asientos", True),
+    ("Citroen C4 2023", "Vehículo con golpe, arranca sin problema", True),
+    ("Seat Ateca 2022", "Siempre en garaje, sin accidentes ni golpes", False),
+    ("Opel Corsa 2026", "NO VENDEMOS PIEZAS !! documentación en regla", False),
+    ("Kia Sportage 2022", "Único dueño, revisiones al día", False),
+])
+def test_is_damaged(title, desc, expected):
+    assert vehicle.is_damaged({"title": title, "description": desc}) is expected

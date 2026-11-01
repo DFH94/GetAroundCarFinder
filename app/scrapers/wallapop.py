@@ -38,6 +38,7 @@ class WallapopScraper(BaseScraper):
                     "id": f"wallapop:{it.get('id')}",
                     "source": "wallapop",
                     "title": it.get("title"),
+                    "description": (it.get("description") or "")[:1500],
                     "make": car.get("brand") or (car.get("brand", {}) if isinstance(car.get("brand"), str) else None),
                     "model": car.get("model"),
                     "year": to_int(car.get("year")),
