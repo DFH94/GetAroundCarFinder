@@ -70,7 +70,8 @@ def listings():
     cfg = load_config()
     my = min_year(cfg)
     rows = [r for r in db.all_rows()
-            if (r["year"] or my) >= my and (r["km"] or 0) <= cfg["max_km"]
+            if r["year"] and r["km"] is not None and r["image"]
+            and r["year"] >= my and (r["km"] or 0) <= cfg["max_km"]
             and r["body"] in cfg["body_types"]]
     return rows
 
