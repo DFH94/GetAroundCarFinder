@@ -22,7 +22,7 @@ SCRAPE_INTERVAL_MIN = int(os.getenv("SCRAPE_INTERVAL_MIN", "60"))
 DEFAULT_CONFIG = {
     # Varios presupuestos: se busca en cada rango
     "budgets": [
-        {"name": "Económico", "min": 6000, "max": 11000, "active": True},
+        {"name": "Económico", "min": 0, "max": 11000, "active": True},
         {"name": "Medio", "min": 11000, "max": 16000, "active": True},
         {"name": "Alto", "min": 16000, "max": 22000, "active": False},
     ],

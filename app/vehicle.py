@@ -99,13 +99,22 @@ def classify(listing: dict) -> str | None:
 
 # Negaciones que no indican daño ("sin accidentes", "no vendemos piezas"...)
 _NOT_DAMAGE = re.compile(
-    r"\b(sin|libre de|ningun|ninguna|no (?:ha tenido|ha sufrido|tiene|vendemos|vendo))\s+(?:\w+\s+){0,2}"
-    r"(?:accident|golpe|siniestr|aver|dano|pieza|despiece)\w*")
+    r"\b(sin|libre de|ningun\w*|no (?:ha tenido|ha sufrido|tiene|tengo|presenta|necesita|requiere|vendemos|vendo))"
+    r"\s+(?:\w+\s+){0,2}"
+    r"(?:accident|golpe|siniestr|aver|dano|pieza|despiece|repar|arreglo)\w*")
 _DAMAGE = re.compile(
-    r"\b(accidentad\w*|siniestr\w*|averiad\w*|averia\w*|inundad\w*|golpe\w*|chocad\w*|choque|"
-    r"danad\w*|danos|incendiad\w*|quemad\w*|para (?:restaurar|reparar)|restaurar|despiece|gripad\w*|"
-    r"fundid\w*|no (?:arranca|funciona|anda)|abollad\w*|airbags? (?:saltad\w*|disparad\w*)|"
-    r"baja (?:temporal|definitiva)|motor (?:roto|malo))\b")
+    r"\b(accidentad\w*|siniestr\w*|averiad\w*|averia\w*|inundad\w*|golpe\w*|chocad\w*|choque|colision\w*|"
+    r"danad\w*|danos|incendi\w*|quemad\w*|abollad\w*|reconstruid\w*|"
+    r"para (?:restaurar|reparar|piezas|despiece|desguace)|por reparar|a reparar|restaurar|restauracion|despiece|"
+    r"vendo por piezas|solo piezas|desguace|chatarra|proyecto|abandonad\w*|"
+    r"gripad\w*|fundid\w*|culata|bielas|sin motor|sin cambio|"
+    r"motor (?:roto|malo|parado)|caja de cambios (?:rota|averiada)|turbo (?:roto|averiado)|embrague roto|"
+    r"no (?:arranca|arrancan|funciona|anda|enciende|pasa|circula)|no puede circular|no apto|"
+    r"necesita (?:repar\w*|arreglo|chapa|motor|embrague|cambio|revision)|"
+    r"pendiente de (?:repar\w*|arreglo)|reparacion (?:necesaria|pendiente)|"
+    r"itv (?:caducad\w*|vencid\w*|suspendid\w*|desfavorable|pendiente)|sin itv|"
+    r"tal cual|tal y como (?:esta|se ve)|en el estado que se ve|"
+    r"airbags? (?:saltad\w*|disparad\w*)|baja (?:temporal|definitiva))\b")
 
 
 def is_damaged(listing: dict) -> bool:

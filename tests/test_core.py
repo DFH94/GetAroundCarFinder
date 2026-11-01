@@ -199,3 +199,18 @@ def test_snapshots_and_history_keep_daily_minimum(tmp_path, monkeypatch):
     h = db.price_history(model_key(rows[0]))
     assert [(p["day"], p["min_price"]) for p in h] == [("2026-11-01", 12000), ("2026-11-02", 11000)]
     assert h[0]["median_price"] == 14000 and h[0]["count"] == 1
+
+
+@pytest.mark.parametrize("title,desc,expected", [
+    ("Seat Ateca 2021", "ITV caducada, hay que pasarla", True),
+    ("Kia Ceed 2020", "Se vende tal cual, ver fotos", True),
+    ("Ford Focus 2020", "Necesita reparación de motor", True),
+    ("Renault Megane 2021", "Proyecto para restaurar", True),
+    ("Skoda Fabia 2020", "No arranca, batería", True),
+    ("VW Golf 2021", "Sin ITV, vendo por viaje", True),
+    ("Toyota Corolla 2021", "Coche en perfecto estado, no necesita reparaciones ni arreglos, ITV en vigor", False),
+    ("Mazda 3 2020", "Sin averías, sin golpes, revisiones en concesionario", False),
+    ("Honda Civic 2021", "No tiene daños. Libro de mantenimiento completo", False),
+])
+def test_is_damaged_stricter(title, desc, expected):
+    assert vehicle.is_damaged({"title": title, "description": desc}) is expected
