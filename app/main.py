@@ -82,6 +82,13 @@ def listings():
     return rows
 
 
+@app.post("/api/listings/{lid}/hide")
+def hide_listing(lid: str):
+    """Descarta un anuncio (dañado / no interesa): no se vuelve a mostrar ni cuenta para medianas."""
+    db.mark_damaged(lid)
+    return {"ok": True}
+
+
 @app.get("/api/body-types")
 def body_types():
     return vehicle.BODY_TYPES

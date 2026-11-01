@@ -123,3 +123,8 @@ dialog::backdrop { background: hsla(230 30% 3% / .7); backdrop-filter: blur(4px)
 .dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1rem; }
 
 @media (max-width: 900px) { .filter-grid { grid-template-columns: 1fr 1fr; } main, .topbar { padding-inline: 1rem; } }
+
+.hide-btn { position: absolute; top: 2.9rem; right: .6rem; z-index: 2; border: 0; cursor: pointer; border-radius: 999px;
+  width: 2rem; height: 2rem; background: hsla(230 30% 7% / .75); color: var(--text); opacity: 0; transition: opacity .15s; }
+.card:hover .hide-btn, .hide-btn:focus-visible { opacity: 1; }
+.hide-btn:hover { background: hsl(0 70% 45%); }

@@ -73,6 +73,7 @@ function render() {
   $('#grid').innerHTML = rows.slice(0, 300).map((l) => `
     <article class="card ${l.is_deal ? 'deal' : ''}" data-id="${esc(l.id)}" id="car-${l.id.replace(/[^a-z0-9]/gi, '-')}" tabindex="0">
       <div class="thumb" style="background-image:url('${encodeURI(safeUrl(l.image))}')">
+        <button type="button" class="hide-btn" data-hide="${esc(l.id)}" title="Ocultar: coche dañado o no me interesa" aria-label="Ocultar anuncio">🚫</button>
         <span class="badge src">${esc(SOURCES[l.source] || l.source)}</span>
         ${l.is_deal ? `<span class="badge hot">🔥 -${l.discount_pct}%</span>` : ''}
         <div class="overlay">
@@ -89,6 +90,11 @@ function render() {
       </div>
     </article>`).join('');
   $('#grid').querySelectorAll('.card').forEach((c) => c.onclick = () => openDetail(c.dataset.id));
+  $('#grid').querySelectorAll('.hide-btn').forEach((b) => b.onclick = async (e) => {
+    e.stopPropagation();
+    try { await api(`/api/listings/${encodeURIComponent(b.dataset.hide)}/hide`, { method: 'POST' }); } catch { return; }
+    LISTINGS = LISTINGS.filter((x) => x.id !== b.dataset.hide); render();
+  });
 }
 
 // ---- Ficha del anuncio con galería ----
