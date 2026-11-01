@@ -1,5 +1,6 @@
 """Avisos por Telegram."""
 import logging
+from html import escape
 
 import httpx
 
@@ -28,13 +29,20 @@ def send(text: str) -> bool:
         return False
 
 
+def _eur(n) -> str:
+    return f"{int(n):,}".replace(",", ".")
+
+
 def deal_message(l: dict) -> str:
-    return (
-        f"🔥 <b>GANGA</b> en {l['source']}\n"
-        f"<b>{l['title']}</b>\n"
-        f"💶 {l['price']:,} € (mediana {l['median_price']:,} €, <b>-{l['discount_pct']}%</b>)\n"
-        f"📅 {l.get('year') or '?'} · 🛣 {l.get('km') or '?'} km · ⛽ {l.get('fuel') or '?'}\n"
-        f"📍 {l.get('location') or '?'}\n"
-        f"📈 Beneficio estimado GetAround: {l['monthly_profit']} €/mes · payback {l['payback_months']} meses\n"
-        f"{l['url']}"
-    ).replace(",", ".")
+    e = lambda v: escape(str(v if v not in (None, "") else "?"))  # noqa: E731
+    return "\n".join([
+        f"🔥 <b>GANGA</b> en {e(l['source'])}",
+        f"<b>{e(l['title'])}</b>",
+        f"💶 {_eur(l['price'])} € (mediana {_eur(l['median_price'])} €, <b>-{l['discount_pct']}%</b>)",
+        f"📅 {e(l.get('year'))} · 🛣 {e(l.get('km'))} km · ⛽ {e(l.get('fuel'))}",
+        f"📍 {e(l.get('location'))}",
+        f"📈 Beneficio estimado GetAround: {l['monthly_profit']} €/mes · payback {l['payback_months']} meses",
+        escape(l["url"]),
+    ])
+
+

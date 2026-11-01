@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import db, scoring, telegram, vehicle
-from .config import ROOT, SCRAPE_INTERVAL_MIN, load_config, min_year, save_config
+from .config import ConfigIn, ROOT, SCRAPE_INTERVAL_MIN, load_config, min_year, save_config
 from .scrapers import SCRAPERS
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -49,7 +49,7 @@ def run_scrape():
             if l["is_deal"] and not l["notified"]:
                 if telegram.send(telegram.deal_message(l)):
                     db.mark_notified(l["id"])
-                deals += 1
+                    deals += 1
         STATE.update(last_run=datetime.now().isoformat(timespec="seconds"), last_new=new, last_deals=deals)
         log.info("Scrape terminado: %d nuevos, %d gangas", new, deals)
     finally:
@@ -60,11 +60,6 @@ def run_scrape():
 @app.on_event("startup")
 def startup():
     db.init()
-    with db.conn() as c:
-        for r in db.all_rows():
-            incomplete = not (r["year"] and r["km"] is not None and r["image"])
-            if incomplete or (not vehicle.classify({**r, "body": None}) and not vehicle.classify(r)):
-                c.execute("DELETE FROM listings WHERE id=?", (r["id"],))
     sched = BackgroundScheduler()
     sched.add_job(run_scrape, "interval", minutes=SCRAPE_INTERVAL_MIN, next_run_time=datetime.now())
     sched.start()
@@ -104,8 +99,8 @@ def get_config():
 
 
 @app.put("/api/config")
-def put_config(cfg: dict):
-    saved = save_config(cfg)
+def put_config(cfg: ConfigIn):
+    saved = save_config(cfg.model_dump())
     rescore(saved)
     return saved
 

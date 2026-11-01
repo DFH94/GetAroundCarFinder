@@ -3,8 +3,10 @@ import json
 import os
 from datetime import date
 from pathlib import Path
+from typing import Literal
 
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
 
 load_dotenv()
 
@@ -40,6 +42,30 @@ DEFAULT_CONFIG = {
         "monthly_fixed_costs": 180,  # seguro, ITV/mantenimiento prorrateado, plaza
     },
 }
+
+
+class BudgetIn(BaseModel):
+    name: str = Field(max_length=60)
+    min: int = Field(ge=0)
+    max: int = Field(ge=0)
+    active: bool = True
+
+
+class EconomicsIn(BaseModel):
+    rented_hours_month: float = Field(ge=0, le=744)
+    getaround_commission_pct: float = Field(ge=0, le=100)
+    monthly_fixed_costs: float = Field(ge=0)
+
+
+class ConfigIn(BaseModel):
+    budgets: list[BudgetIn]
+    max_age_years: int = Field(ge=0, le=30)
+    max_km: int = Field(ge=0)
+    body_types: list[Literal["berlina", "familiar", "suv", "monovolumen"]]
+    sources: list[Literal["wallapop", "autoscout24", "cochesnet", "milanuncios"]]
+    deal_threshold_pct: float = Field(ge=0, le=100)
+    min_comparables: int = Field(default=3, ge=1)
+    economics: EconomicsIn
 
 
 def load_config() -> dict:

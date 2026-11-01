@@ -43,8 +43,6 @@ def init():
             c.execute("ALTER TABLE listings ADD COLUMN body TEXT")
         if "images" not in cols:
             c.execute("ALTER TABLE listings ADD COLUMN images TEXT")
-        # Limpia anuncios que ya no cumplen (se reclasifican en cada búsqueda)
-        c.execute("DELETE FROM listings WHERE body IS NULL")
 
 
 def upsert(listing: dict) -> bool:

@@ -1,4 +1,6 @@
 const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const safeUrl = (u) => (/^https?:\/\//i.test(u || '') ? u : '');
 const fmt = (n) => (n == null ? '—' : n.toLocaleString('es-ES'));
 const SOURCES = { wallapop: 'Wallapop', autoscout24: 'AutoScout24', cochesnet: 'coches.net', milanuncios: 'Milanuncios' };
 const BODIES = { berlina: 'Berlina', familiar: 'Familiar', suv: 'SUV', monovolumen: 'Monovolumen' };
@@ -6,6 +8,7 @@ let LISTINGS = [], CONFIG = null, selectedBudgets = new Set();
 
 async function api(path, opts = {}) {
   const r = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  if (!r.ok) throw new Error(`${path}: ${r.status}`);
   return r.json();
 }
 
@@ -17,7 +20,7 @@ async function load() {
 
 function renderBudgetChips() {
   $('#budget-chips').innerHTML = CONFIG.budgets.map((b, i) =>
-    `<span class="chip ${selectedBudgets.has(i) ? 'on' : ''}" data-i="${i}">${b.name} · ${fmt(b.min)}–${fmt(b.max)} €</span>`).join('');
+    `<span class="chip ${selectedBudgets.has(i) ? 'on' : ''}" data-i="${i}">${esc(b.name)} · ${fmt(b.min)}–${fmt(b.max)} €</span>`).join('');
   $('#budget-chips').querySelectorAll('.chip').forEach((c) => c.onclick = () => {
     const i = +c.dataset.i; selectedBudgets.has(i) ? selectedBudgets.delete(i) : selectedBudgets.add(i);
     renderBudgetChips(); render();
@@ -28,7 +31,7 @@ function fillSelects() {
   const uniq = (k) => [...new Set(LISTINGS.map((l) => l[k]).filter(Boolean))].sort();
   const fill = (sel, vals, label) => {
     const cur = $(sel).value;
-    $(sel).innerHTML = `<option value="">${label}</option>` + vals.map((v) => `<option value="${v}">${SOURCES[v] || BODIES[v] || v}</option>`).join('');
+    $(sel).innerHTML = `<option value="">${label}</option>` + vals.map((v) => `<option value="${esc(v)}">${esc(SOURCES[v] || BODIES[v] || v)}</option>`).join('');
     $(sel).value = cur;
   };
   fill('#f-source', uniq('source'), 'Todos los portales');
@@ -46,7 +49,7 @@ function filtered() {
     (!src || l.source === src) && (!fuel || l.fuel === fuel) && (!body || l.body === body) &&
     (l.km ?? 0) <= maxkm && (l.year ?? 9999) >= minyear && (!deals || l.is_deal));
   const S = {
-    price_asc: (a, b) => a.price - b.price,
+    price_asc: (a, b) => (a.price ?? 1e9) - (b.price ?? 1e9),
     discount_desc: (a, b) => (b.discount_pct ?? -99) - (a.discount_pct ?? -99),
     payback_asc: (a, b) => (a.payback_months ?? 999) - (b.payback_months ?? 999),
     km_asc: (a, b) => (a.km ?? 1e9) - (b.km ?? 1e9),
@@ -68,9 +71,9 @@ function render() {
     <div class="stat"><b>${best ?? '—'} m</b><span>Mejor payback GetAround</span></div>`;
   $('#empty').classList.toggle('hidden', rows.length > 0);
   $('#grid').innerHTML = rows.slice(0, 300).map((l) => `
-    <article class="card ${l.is_deal ? 'deal' : ''}" data-id="${l.id}" id="car-${l.id.replace(/[^a-z0-9]/gi, '-')}" tabindex="0">
-      <div class="thumb" style="background-image:url('${l.image || ''}')">
-        <span class="badge src">${SOURCES[l.source] || l.source}</span>
+    <article class="card ${l.is_deal ? 'deal' : ''}" data-id="${esc(l.id)}" id="car-${l.id.replace(/[^a-z0-9]/gi, '-')}" tabindex="0">
+      <div class="thumb" style="background-image:url('${encodeURI(safeUrl(l.image))}')">
+        <span class="badge src">${esc(SOURCES[l.source] || l.source)}</span>
         ${l.is_deal ? `<span class="badge hot">🔥 -${l.discount_pct}%</span>` : ''}
         <div class="overlay">
           <span class="pill">📅 ${l.year ?? '—'}</span>
@@ -79,9 +82,9 @@ function render() {
         </div>
       </div>
       <div class="body">
-        <div class="title">${l.title || `${l.make} ${l.model}`}</div>
+        <div class="title">${esc(l.title || `${l.make} ${l.model}`)}</div>
         <div class="price">${fmt(l.price)} €${l.median_price ? `<small>mediana ${fmt(l.median_price)} €</small>` : ''}</div>
-        <div class="specs"><span>🚘 ${BODIES[l.body] || '—'}</span><span>⛽ ${l.fuel || '—'}</span><span>📍 ${l.location || '—'}</span></div>
+        <div class="specs"><span>🚘 ${BODIES[l.body] || '—'}</span><span>⛽ ${esc(l.fuel || '—')}</span><span>📍 ${esc(l.location || '—')}</span></div>
         <div class="roi"><span>Beneficio <b>${fmt(l.monthly_profit)} €/mes</b></span><span>Payback <b>${l.payback_months ?? '—'} m</b></span></div>
       </div>
     </article>`).join('');
@@ -93,7 +96,7 @@ let DETAIL = null, PHOTO = 0;
 function showPhoto(i) {
   const imgs = DETAIL.images;
   PHOTO = (i + imgs.length) % imgs.length;
-  $('#d-img').src = imgs[PHOTO];
+  $('#d-img').src = safeUrl(imgs[PHOTO]);
   $('#d-counter').textContent = `${PHOTO + 1} / ${imgs.length}`;
   $('#d-thumbs').querySelectorAll('img').forEach((t, j) => t.classList.toggle('on', j === PHOTO));
   const multi = imgs.length > 1;
@@ -102,7 +105,7 @@ function showPhoto(i) {
 function openDetail(id) {
   const l = LISTINGS.find((x) => x.id === id); if (!l) return;
   DETAIL = { ...l, images: l.images.length ? l.images : [l.image] };
-  $('#d-thumbs').innerHTML = DETAIL.images.length > 1 ? DETAIL.images.map((u, j) => `<img src="${u}" data-j="${j}" loading="lazy" alt="Miniatura ${j + 1}" />`).join('') : '';
+  $('#d-thumbs').innerHTML = DETAIL.images.length > 1 ? DETAIL.images.map((u, j) => `<img src="${esc(safeUrl(u))}" data-j="${j}" loading="lazy" alt="Miniatura ${j + 1}" />`).join('') : '';
   $('#d-thumbs').querySelectorAll('img').forEach((t) => t.onclick = () => showPhoto(+t.dataset.j));
   $('#d-source').textContent = SOURCES[l.source] || l.source;
   $('#d-title').textContent = l.title || `${l.make} ${l.model}`;
@@ -116,7 +119,7 @@ function openDetail(id) {
   $('#d-profit').textContent = `${fmt(l.monthly_profit)} €`;
   $('#d-payback').textContent = l.payback_months ? `${l.payback_months} meses` : '—';
   $('#d-disc').textContent = l.discount_pct != null ? `${l.discount_pct > 0 ? '-' : '+'}${Math.abs(l.discount_pct)}%` : 'Sin datos';
-  $('#d-link').href = l.url;
+  $('#d-link').href = safeUrl(l.url) || '#';
   showPhoto(0);
   $('#detail').showModal();
 }
@@ -131,7 +134,9 @@ document.addEventListener('keydown', (e) => {
 });
 
 async function refreshStatus() {
-  const s = await api('/api/status');
+  if (document.hidden) return;
+  let s;
+  try { s = await api('/api/status'); } catch { $('#status').textContent = 'Sin conexión'; return; }
   const el = $('#status');
   el.classList.toggle('running', s.running);
   el.textContent = s.running ? 'Buscando…' : s.last_run ? `Última: ${s.last_run.slice(11, 16)} · +${s.last_new} nuevos` : 'Sin búsquedas aún';
@@ -144,7 +149,7 @@ async function refreshStatus() {
 // ---- Ajustes ----
 function budgetLine(b = { name: '', min: 0, max: 0, active: true }) {
   const d = document.createElement('div'); d.className = 'budget-line';
-  d.innerHTML = `<input type="checkbox" ${b.active ? 'checked' : ''} /><input type="text" value="${b.name}" placeholder="Nombre" />
+  d.innerHTML = `<input type="checkbox" ${b.active ? 'checked' : ''} /><input type="text" value="${esc(b.name)}" placeholder="Nombre" />
     <input type="number" value="${b.min}" placeholder="Mín €" /><input type="number" value="${b.max}" placeholder="Máx €" />
     <button type="button" class="btn ghost small">✕</button>`;
   d.querySelector('button').onclick = () => d.remove();
@@ -166,12 +171,14 @@ async function saveSettings() {
     const [chk, name, min, max] = d.querySelectorAll('input');
     return { active: chk.checked, name: name.value || 'Presupuesto', min: +min.value, max: +max.value };
   });
+  try {
   CONFIG = await api('/api/config', { method: 'PUT', body: JSON.stringify({
     ...CONFIG, budgets, max_age_years: +$('#s-age').value, max_km: +$('#s-km').value, deal_threshold_pct: +$('#s-deal').value,
     sources: [...document.querySelectorAll('#s-sources .chip.on')].map((c) => c.dataset.k),
     body_types: [...document.querySelectorAll('#s-bodies .chip.on')].map((c) => c.dataset.k),
     economics: { rented_hours_month: +$('#s-hours').value, getaround_commission_pct: +$('#s-comm').value, monthly_fixed_costs: +$('#s-costs').value },
   }) });
+  } catch { alert('Configuración no válida. Revisa los valores.'); return; }
   selectedBudgets.clear(); $('#settings').close(); load();
 }
 
@@ -180,6 +187,7 @@ $('#btn-settings').onclick = openSettings;
 $('#add-budget').onclick = () => $('#budget-editor').appendChild(budgetLine());
 $('#save-settings').onclick = saveSettings;
 $('#tg-test').onclick = async () => { const r = await api('/api/telegram/test', { method: 'POST' }); alert(r.ok ? 'Mensaje enviado ✅' : 'No se pudo enviar. Revisa el .env'); };
-['#f-text', '#f-source', '#f-fuel', '#f-body', '#f-maxkm', '#f-minyear', '#f-sort', '#f-deals'].forEach((s) => $(s).addEventListener('input', render));
+let t; const deb = () => { clearTimeout(t); t = setTimeout(render, 200); };
+['#f-text', '#f-source', '#f-fuel', '#f-body', '#f-maxkm', '#f-minyear', '#f-sort', '#f-deals'].forEach((s) => $(s).addEventListener('input', deb));
 
 load(); refreshStatus(); setInterval(refreshStatus, 4000);
