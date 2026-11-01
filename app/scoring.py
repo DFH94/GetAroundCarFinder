@@ -20,17 +20,30 @@ def hourly_rate(price: int) -> float:
 
 def compute(rows: list[dict], cfg: dict) -> list[dict]:
     eco = cfg["economics"]
-    groups = defaultdict(list)
+    # Índices por marca: comparables con el mismo modelo (completo y luego 1ª palabra) y año ±1
+    by_make = defaultdict(list)
     for r in rows:
-        if r.get("price") and r.get("make"):
-            groups[(_norm(r["make"]), _norm(r["model"]).split(" ")[0], r.get("year"))].append(r["price"])
+        if r.get("price") and r.get("make") and r.get("year"):
+            by_make[_norm(r["make"])].append(r)
+
+    def comparables(r):
+        make, model = _norm(r.get("make")), _norm(r.get("model"))
+        year = r.get("year")
+        if not (make and year):
+            return []
+        pool = [c for c in by_make.get(make, []) if abs(c["year"] - year) <= 1]
+        for words in (2, 1):
+            key = " ".join(model.split(" ")[:words])
+            comps = [c["price"] for c in pool if " ".join(_norm(c["model"]).split(" ")[:words]) == key]
+            if len(comps) >= cfg["min_comparables"]:
+                return comps
+        return []
 
     out = []
     for r in rows:
         price = r.get("price") or 0
-        key = (_norm(r.get("make")), _norm(r.get("model")).split(" ")[0], r.get("year"))
-        comps = groups.get(key, [])
-        med = int(median(comps)) if len(comps) >= cfg["min_comparables"] else None
+        comps = comparables(r)
+        med = int(median(comps)) if comps else None
         disc = round((med - price) / med * 100, 1) if med and price else None
         is_deal = int(bool(disc is not None and disc >= cfg["deal_threshold_pct"]))
 

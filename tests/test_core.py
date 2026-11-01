@@ -39,3 +39,23 @@ def test_config_validation():
         ConfigIn(**{**ok, "sources": ["nope"]})
     with pytest.raises(ValidationError):
         ConfigIn(**{**ok, "deal_threshold_pct": 500})
+
+
+def _rows(model, prices, year=2021):
+    return [{"id": f"{model}{i}", "make": "VW", "model": model, "year": year, "price": p}
+            for i, p in enumerate(prices)]
+
+
+def test_median_does_not_mix_versions():
+    rows = _rows("Golf GTI", [20000, 20000, 20000]) + _rows("Golf 1.0", [10000, 10000, 10000, 8000])
+    out = {r["id"]: r for r in scoring.compute(rows, DEFAULT_CONFIG)}
+    assert out["Golf 1.03"]["median_price"] == 10000
+    assert out["Golf GTI0"]["median_price"] == 20000
+
+
+def test_median_year_tolerance_and_no_data():
+    rows = _rows("Ateca", [10000, 10000], 2021) + _rows("Ateca", [10000], 2022)
+    out = {r["id"]: r for r in scoring.compute(rows, DEFAULT_CONFIG)}
+    assert out["Ateca0"]["median_price"] == 10000
+    lonely = scoring.compute(_rows("Raro", [9000]), DEFAULT_CONFIG)[0]
+    assert lonely["median_price"] is None and lonely["is_deal"] == 0
