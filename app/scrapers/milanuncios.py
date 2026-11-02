@@ -7,6 +7,13 @@ from ..vehicle import split_make_model
 from .base import BaseScraper, to_int
 
 
+def absolute_url(u: str) -> str:
+    """Las fotos llegan como 'images.x.com/..', '//images.x.com/..' o ya con https."""
+    if u.startswith("http"):
+        return u
+    return "https:" + u if u.startswith("//") else "https://" + u.lstrip("/")
+
+
 class MilanunciosScraper(BaseScraper):
     name = "milanuncios"
 
@@ -36,7 +43,7 @@ class MilanunciosScraper(BaseScraper):
                 for p in a.get("photos") or a.get("images") or []:
                     u = p if isinstance(p, str) else (p.get("url") or p.get("src") or p.get("big") or "")
                     if u:
-                        photos.append(u if u.startswith("http") else "https:" + u)
+                        photos.append(absolute_url(u))
                 out.append({
                     "id": f"milanuncios:{a.get('id')}",
                     "source": "milanuncios",

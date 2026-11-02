@@ -167,10 +167,13 @@ async function refreshStatus() {
   try { s = await api('/api/status'); } catch { $('#status').textContent = 'Sin conexión'; return; }
   const el = $('#status');
   el.classList.toggle('running', s.running);
-  el.textContent = s.running ? 'Buscando…' : s.last_run ? `Última: ${s.last_run.slice(11, 16)} · +${s.last_new} nuevos` : 'Sin búsquedas aún';
+  el.textContent = s.running ? (s.reviewing ? 'Revisando fotos…' : 'Buscando…') : s.last_run ? `Última: ${s.last_run.slice(11, 16)} · +${s.last_new} nuevos` : 'Sin búsquedas aún';
   $('#btn-scrape').disabled = s.running;
   if (refreshStatus.wasRunning && !s.running) load();
   refreshStatus.wasRunning = s.running;
+  $('#photo-state').textContent = s.photo_review
+    ? '✅ Activa (gratis, en tu equipo): se revisan las fotos de los anuncios y se descartan los coches con daños visibles.'
+    : '⚠️ Desactivada (PHOTO_REVIEW=off en el archivo .env).';
   $('#tg-state').textContent = s.telegram ? '✅ Telegram configurado. Recibirás las gangas.' : '⚠️ Configura TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID en el archivo .env y reinicia.';
 }
 

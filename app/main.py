@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import db, scoring, telegram, vehicle
+from . import db, photos, scoring, telegram, vehicle
 from .dedupe import dedupe, same_car_key
 from .history import model_key, snapshots
 from .config import ConfigIn, ROOT, SCRAPE_INTERVAL_MIN, load_config, min_year, save_config
@@ -21,7 +21,10 @@ log = logging.getLogger("app")
 
 app = FastAPI(title="GetAround Car Finder")
 MAX_DETAIL_FETCH = 150  # fichas abiertas por búsqueda para leer descripciones
-STATE = {"running": False, "last_run": None, "last_new": 0, "last_deals": 0}
+TRUSTED_SOURCES = {"flexicar"}
+PRIVATE_SOURCES = {"wallapop", "milanuncios"}
+MAX_PHOTO_REVIEWS = 60  # anuncios con fotos revisadas por búsqueda (cada uno tarda unos segundos en CPU)
+STATE = {"reviewing": False, "running": False, "last_run": None, "last_new": 0, "last_deals": 0}
 _lock = threading.Lock()
 
 
@@ -31,6 +34,42 @@ def visible_rows(cfg):
             if r["year"] and r["km"] is not None and r["image"] and not vehicle.is_suspect(r)
             and r["year"] >= my and r["km"] <= cfg["max_km"] and r["body"] in cfg["body_types"]
             and not (cfg.get("exclude_canarias", True) and vehicle.is_canarias(r))]
+
+
+def hide_with_copies(lid: str):
+    """Descarta un anuncio y sus copias idénticas en otras ciudades."""
+    rows = db.all_rows()
+    target = next((r for r in rows if r["id"] == lid), None)
+    key = same_car_key(target) if target else None
+    for r in rows:
+        if r["id"] == lid or (key and same_car_key(r) == key):
+            db.mark_damaged(r["id"])
+    db.mark_damaged(lid)
+
+
+def review_photos(cfg, limit=MAX_PHOTO_REVIEWS):
+    """Revisa en local (CLIP, gratis) las fotos de los anuncios visibles que aún no tienen veredicto."""
+    if not photos.enabled():
+        return 0
+    unique, _ = dedupe(visible_rows(cfg))
+    for r in unique:  # concesionarios con garantía: no hace falta revisar sus fotos
+        if r["source"] in TRUSTED_SOURCES and not r.get("photo_verdict"):
+            db.set_photo_review(r["id"], "skip", "concesionario con garantía")
+            r["photo_verdict"] = "skip"
+    # primero los particulares (más riesgo), luego el resto
+    pending = sorted((r for r in unique if not r.get("photo_verdict")),
+                     key=lambda r: (r["source"] not in PRIVATE_SOURCES, r["price"]))[:limit]
+    done = 0
+    for r in pending:
+        result = photos.review(r.get("images") or [r["image"]])
+        if not result:
+            continue
+        done += 1
+        db.set_photo_review(r["id"], result["verdict"], result["note"])
+        if photos.is_blocking(result):
+            log.info("Descartado por fotos: %s (%s)", r["title"], result["note"])
+            hide_with_copies(r["id"])
+    return done
 
 
 def rescore(cfg):
@@ -76,6 +115,11 @@ def run_scrape():
                     if btype and btype in cfg["body_types"]:
                         l["body"] = btype
                         new += db.upsert(l)
+        STATE["reviewing"] = True
+        try:
+            reviewed = review_photos(cfg)
+        finally:
+            STATE["reviewing"] = False
         rescore(cfg)
         deals = 0
         for l in db.all_rows():
@@ -115,13 +159,7 @@ def listings():
 @app.post("/api/listings/{lid}/hide")
 def hide_listing(lid: str):
     """Descarta un anuncio (dañado / no interesa): no se vuelve a mostrar ni cuenta para medianas."""
-    rows = db.all_rows()
-    target = next((r for r in rows if r["id"] == lid), None)
-    key = same_car_key(target) if target else None
-    for r in rows:  # también sus copias en otras ciudades
-        if r["id"] == lid or (key and same_car_key(r) == key):
-            db.mark_damaged(r["id"])
-    db.mark_damaged(lid)
+    hide_with_copies(lid)
     return {"ok": True}
 
 
@@ -150,7 +188,7 @@ def body_types():
 
 @app.get("/api/status")
 def status():
-    return {**STATE, "telegram": telegram.enabled(), "interval_min": SCRAPE_INTERVAL_MIN}
+    return {**STATE, "photo_review": photos.enabled(), "telegram": telegram.enabled(), "interval_min": SCRAPE_INTERVAL_MIN}
 
 
 @app.post("/api/scrape")

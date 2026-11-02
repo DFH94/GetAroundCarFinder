@@ -48,7 +48,7 @@ def init():
             c.execute("ALTER TABLE listings ADD COLUMN body TEXT")
         if "images" not in cols:
             c.execute("ALTER TABLE listings ADD COLUMN images TEXT")
-        for extra in ("province", "postal"):
+        for extra in ("province", "postal", "photo_verdict", "photo_note"):
             if extra not in cols:
                 c.execute(f"ALTER TABLE listings ADD COLUMN {extra} TEXT")
         if "description" not in cols:
@@ -105,6 +105,11 @@ def has_description(lid: str) -> bool:
     with conn() as c:
         row = c.execute("SELECT description FROM listings WHERE id=?", (lid,)).fetchone()
     return bool(row and row["description"] is not None)
+
+
+def set_photo_review(lid: str, verdict: str, note: str):
+    with conn() as c:
+        c.execute("UPDATE listings SET photo_verdict=?, photo_note=? WHERE id=?", (verdict, note, lid))
 
 
 def mark_notified(lid: str):

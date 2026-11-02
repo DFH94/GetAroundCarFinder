@@ -328,3 +328,67 @@ def test_config_accepts_exclude_canarias_flag():
     ok = {k: DEFAULT_CONFIG[k] for k in ConfigIn.model_fields if k in DEFAULT_CONFIG}
     assert ConfigIn(**ok).exclude_canarias is True
     assert ConfigIn(**{**ok, "exclude_canarias": False}).exclude_canarias is False
+
+
+def test_photo_review_decides_by_worst_photo(monkeypatch):
+    from app import photos
+    monkeypatch.setattr(photos, "_download", lambda url: object())
+    monkeypatch.setattr(photos, "damage_probabilities", lambda imgs: [0.05, 0.82, 0.10][: len(imgs)])
+    res = photos.review(["a", "b", "c", "d"])
+    assert res["verdict"] == "damaged" and photos.is_blocking(res) and res["score"] == 0.82
+    monkeypatch.setattr(photos, "damage_probabilities", lambda imgs: [0.05, 0.30, 0.10][: len(imgs)])
+    res = photos.review(["a", "b", "c"])
+    assert res["verdict"] == "ok" and not photos.is_blocking(res)
+
+
+def test_photo_review_without_usable_photos_or_on_error_is_none(monkeypatch):
+    from app import photos
+    monkeypatch.setattr(photos, "_download", lambda url: None)
+    assert photos.review(["a", "b"]) is None
+    monkeypatch.setattr(photos, "_download", lambda url: object())
+
+    def boom(imgs):
+        raise RuntimeError("modelo no disponible")
+
+    monkeypatch.setattr(photos, "damage_probabilities", boom)
+    assert photos.review(["a"]) is None  # un fallo nunca descarta ni rompe la búsqueda
+
+
+def test_photo_prompts_are_balanced():
+    from app import photos
+    assert photos.N_DAMAGED == len(photos.DAMAGED) and len(photos.PROMPTS) > photos.N_DAMAGED * 2
+    assert photos.PROMPTS[: photos.N_DAMAGED] == photos.DAMAGED
+
+
+def test_review_photos_hides_damaged_car_and_its_copies(tmp_path, monkeypatch):
+    from app import db, main, photos
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    car = {"source": "x", "title": "Seat Ateca", "make": "Seat", "model": "Ateca", "year": 2022, "km": 40123,
+           "price": 14000, "image": "i1", "images": ["i1"], "body": "suv"}
+    db.upsert({**car, "id": "a:1", "location": "Madrid"})
+    db.upsert({**car, "id": "a:2", "location": "Vigo"})                      # copia idéntica
+    db.upsert({**car, "id": "a:3", "km": 50500, "location": "Madrid"})       # otro coche
+    monkeypatch.setattr(main, "visible_rows", lambda cfg: db.all_rows())
+    monkeypatch.setattr(photos, "enabled", lambda: True)
+    seen = []
+
+    def fake_review(urls):
+        seen.append(urls)
+        return {"verdict": "damaged", "score": 0.9, "note": "daño 90%"} if len(seen) == 1 else \
+               {"verdict": "ok", "score": 0.05, "note": "daño 5%"}
+
+    monkeypatch.setattr(photos, "review", fake_review)
+    assert main.review_photos({}) == 2          # a:1 (y su copia) y a:3: las copias se revisan una vez
+    visible = {r["id"] for r in db.all_rows()}  # all_rows excluye los marcados como dañados
+    assert visible == {"a:3"}
+    # segunda búsqueda: lo ya revisado no se vuelve a revisar
+    seen.clear()
+    assert main.review_photos({}) == 0 and seen == []
+
+
+def test_milanuncios_absolute_photo_urls():
+    from app.scrapers.milanuncios import absolute_url
+    assert absolute_url("images.milanuncios.com/a/b.jpg") == "https://images.milanuncios.com/a/b.jpg"
+    assert absolute_url("//images.milanuncios.com/a.jpg") == "https://images.milanuncios.com/a.jpg"
+    assert absolute_url("https://x.com/a.jpg") == "https://x.com/a.jpg"
