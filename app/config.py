@@ -31,7 +31,7 @@ DEFAULT_CONFIG = {
     "max_km": 60000,
     # Solo berlinas o superior (sin utilitarios, motos, quads, furgonetas...)
     "body_types": ["berlina", "familiar", "suv", "monovolumen"],
-    "sources": ["wallapop", "autoscout24", "cochesnet", "milanuncios", "flexicar"],
+    "sources": ["wallapop", "autoscout24", "cochesnet", "milanuncios", "flexicar", "autocasion"],
     # Ganga = precio por debajo de la mediana de comparables en este %
     "deal_threshold_pct": 15,
     "min_comparables": 3,
@@ -62,7 +62,7 @@ class ConfigIn(BaseModel):
     max_age_years: int = Field(ge=0, le=30)
     max_km: int = Field(ge=0)
     body_types: list[Literal["berlina", "familiar", "suv", "monovolumen"]]
-    sources: list[Literal["wallapop", "autoscout24", "cochesnet", "milanuncios", "flexicar"]]
+    sources: list[Literal["wallapop", "autoscout24", "cochesnet", "milanuncios", "flexicar", "autocasion"]]
     deal_threshold_pct: float = Field(ge=0, le=100)
     min_comparables: int = Field(default=3, ge=1)
     economics: EconomicsIn

@@ -2,7 +2,7 @@ const $ = (s) => document.querySelector(s);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const safeUrl = (u) => (/^https?:\/\//i.test(u || '') ? u : '');
 const fmt = (n) => (n == null ? '—' : n.toLocaleString('es-ES'));
-const SOURCES = { wallapop: 'Wallapop', autoscout24: 'AutoScout24', cochesnet: 'coches.net', milanuncios: 'Milanuncios', flexicar: 'Flexicar' };
+const SOURCES = { wallapop: 'Wallapop', autoscout24: 'AutoScout24', cochesnet: 'coches.net', milanuncios: 'Milanuncios', flexicar: 'Flexicar', autocasion: 'Autocasion' };
 const BODIES = { berlina: 'Berlina', familiar: 'Familiar', suv: 'SUV', monovolumen: 'Monovolumen' };
 let LISTINGS = [], CONFIG = null, selectedBudgets = new Set();
 let VIEW = localStorage.getItem('view') === 'list' ? 'list' : 'cards';

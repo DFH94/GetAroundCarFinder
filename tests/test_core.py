@@ -214,3 +214,38 @@ def test_snapshots_and_history_keep_daily_minimum(tmp_path, monkeypatch):
 ])
 def test_is_damaged_stricter(title, desc, expected):
     assert vehicle.is_damaged({"title": title, "description": desc}) is expected
+
+
+def test_autocasion_parses_and_filters(monkeypatch):
+    import json
+    from app.scrapers.autocasion import AutocasionScraper
+
+    def prod(i, year=2022, km=40000, price=9000):
+        return {"@type": "Product", "name": f"SEAT Ateca-{price}€", "brand": {"name": "SEAT"},
+                "image": [f"https://i/{i}.jpg"],
+                "offers": {"price": str(price), "url": f"https://www.autocasion.com/x-ref{i}",
+                           "itemOffered": {"identifier": i, "manufacturer": "SEAT", "model": "Ateca",
+                                           "productionDate": year, "bodyType": "4x4, SUV o pickup",
+                                           "vehicleTransmission": "Manual",
+                                           "mileageFromOdometer": {"value": km}}}}
+
+    def page(*items):
+        return "<html><script type='application/ld+json'>" + json.dumps(list(items)) + "</script></html>"
+
+    class R:
+        status_code = 200
+
+        def __init__(self, text):
+            self.text = text
+
+        def raise_for_status(self):
+            pass
+
+    pages = iter([R(page(prod(1), prod(2, year=2015), prod(3, price=30000))), R(page(prod(1))), R("<html></html>")])
+    s = AutocasionScraper()
+    monkeypatch.setattr(s, "polite_sleep", lambda: None)
+    monkeypatch.setattr(s.client, "get", lambda *a, **k: next(pages))
+    out = s.search(5000, 11000, 2020, 60000)
+    assert [o["id"] for o in out] == ["autocasion:1"]
+    assert out[0]["title"] == "SEAT Ateca" and out[0]["body"] == "4x4, SUV o pickup"
+    assert out[0]["url"] == "https://www.autocasion.com/x-ref1"
