@@ -29,7 +29,8 @@ def visible_rows(cfg):
     my = min_year(cfg)
     return [r for r in db.all_rows()
             if r["year"] and r["km"] is not None and r["image"] and not vehicle.is_suspect(r)
-            and r["year"] >= my and r["km"] <= cfg["max_km"] and r["body"] in cfg["body_types"]]
+            and r["year"] >= my and r["km"] <= cfg["max_km"] and r["body"] in cfg["body_types"]
+            and not (cfg.get("exclude_canarias", True) and vehicle.is_canarias(r))]
 
 
 def rescore(cfg):

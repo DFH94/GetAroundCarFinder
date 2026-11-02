@@ -35,6 +35,8 @@ DEFAULT_CONFIG = {
     # Ganga = precio por debajo de la mediana de comparables en este %
     "deal_threshold_pct": 15,
     "min_comparables": 3,
+    # No mostrar coches de las Islas Canarias (traerlos a la península es caro y lento)
+    "exclude_canarias": True,
     # Supuestos de negocio GetAround
     "economics": {
         "rented_hours_month": 120,
@@ -65,6 +67,7 @@ class ConfigIn(BaseModel):
     sources: list[Literal["wallapop", "autoscout24", "cochesnet", "milanuncios", "flexicar", "autocasion"]]
     deal_threshold_pct: float = Field(ge=0, le=100)
     min_comparables: int = Field(default=3, ge=1)
+    exclude_canarias: bool = True
     economics: EconomicsIn
 
 

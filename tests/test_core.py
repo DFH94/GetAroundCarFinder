@@ -303,3 +303,28 @@ def test_has_description_distinguishes_empty_from_unread(tmp_path, monkeypatch):
 def test_placeholder_prices_are_suspect():
     assert vehicle.is_suspect({"year": 2020, "price": 15})
     assert not vehicle.is_suspect({"year": 2020, "price": 6000})
+
+
+@pytest.mark.parametrize("listing,expected", [
+    ({"location": "Las Palmas de Gran Canaria"}, True),
+    ({"location": "Madrid", "postal": "35014"}, True),
+    ({"location": "Madrid", "postal": "38001"}, True),
+    ({"location": "Telde", "province": None}, True),
+    ({"location": "Algo", "province": "Las Palmas"}, True),
+    ({"location": "Santa Cruz de Tenerife"}, True),
+    ({"location": "Madrid", "title": "Seat Ibiza Tenerife edition 2021"}, True),
+    ({"location": "Madrid", "title": "Dacia Sandero", "description": "Servicio no disponible para vehículos ubicados en Canarias"}, False),
+    ({"location": "Madrid", "postal": "28001"}, False),
+    ({"location": "Valverde del Camino", "postal": "21600"}, False),
+    ({"location": "Madrid", "title": "SEAT Arona 1.0 TSI", "postal": "28013"}, False),   # el modelo no es el municipio
+    ({"location": "Palma de Mallorca", "postal": "07001"}, False),
+    ({"location": "Santa Cruz de Bezana", "postal": "39100"}, False),                    # Cantabria, no Tenerife
+])
+def test_is_canarias(listing, expected):
+    assert vehicle.is_canarias(listing) is expected
+
+
+def test_config_accepts_exclude_canarias_flag():
+    ok = {k: DEFAULT_CONFIG[k] for k in ConfigIn.model_fields if k in DEFAULT_CONFIG}
+    assert ConfigIn(**ok).exclude_canarias is True
+    assert ConfigIn(**{**ok, "exclude_canarias": False}).exclude_canarias is False

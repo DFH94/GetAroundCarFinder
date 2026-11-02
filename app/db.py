@@ -48,6 +48,9 @@ def init():
             c.execute("ALTER TABLE listings ADD COLUMN body TEXT")
         if "images" not in cols:
             c.execute("ALTER TABLE listings ADD COLUMN images TEXT")
+        for extra in ("province", "postal"):
+            if extra not in cols:
+                c.execute(f"ALTER TABLE listings ADD COLUMN {extra} TEXT")
         if "description" not in cols:
             c.execute("ALTER TABLE listings ADD COLUMN description TEXT")
         if "damaged" not in cols:
@@ -63,13 +66,15 @@ def upsert(listing: dict) -> bool:
         if exists:
             c.execute(
                 "UPDATE listings SET price=?, km=COALESCE(?, km), year=COALESCE(?, year), last_seen=?, "
-                "image=COALESCE(?, image), images=?, description=COALESCE(?, description) WHERE id=?",
+                "image=COALESCE(?, image), images=?, description=COALESCE(?, description), "
+                "province=COALESCE(?, province), postal=COALESCE(?, postal) WHERE id=?",
                 (listing["price"], listing.get("km"), listing.get("year"), now, listing.get("image"),
-                 listing["images"], listing.get("description"), listing["id"]),
+                 listing["images"], listing.get("description"), listing.get("province"),
+                 listing.get("postal"), listing["id"]),
             )
             return False
         cols = ["id", "source", "title", "make", "model", "year", "km", "price",
-                "fuel", "gearbox", "location", "body", "url", "image", "images", "description"]
+                "fuel", "gearbox", "location", "body", "url", "image", "images", "description", "province", "postal"]
         c.execute(
             f"INSERT INTO listings ({','.join(cols)}, first_seen, last_seen) "
             f"VALUES ({','.join('?' * len(cols))}, ?, ?)",

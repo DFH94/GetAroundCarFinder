@@ -49,6 +49,7 @@ class AutoScout24Scraper(BaseScraper):
                     "fuel": v.get("fuel"), "gearbox": v.get("transmission"),
                     "body": v.get("bodyType") or v.get("body"),
                     "location": (l.get("location") or {}).get("city"),
+                    "postal": (l.get("location") or {}).get("zip"),
                     "url": "https://www.autoscout24.es" + (l.get("url") or ""),
                     "image": ((l.get("images") or [""])[0] or "").replace("250x188", "640x480") or None,
                     "images": [i.replace("250x188", "640x480") for i in (l.get("images") or []) if isinstance(i, str)],

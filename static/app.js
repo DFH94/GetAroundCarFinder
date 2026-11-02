@@ -188,6 +188,7 @@ function openSettings() {
   $('#s-age').value = CONFIG.max_age_years; $('#s-km').value = CONFIG.max_km; $('#s-deal').value = CONFIG.deal_threshold_pct;
   $('#s-hours').value = CONFIG.economics.rented_hours_month; $('#s-comm').value = CONFIG.economics.getaround_commission_pct;
   $('#s-costs').value = CONFIG.economics.monthly_fixed_costs;
+  $('#s-canarias').checked = CONFIG.exclude_canarias !== false;
   $('#s-sources').innerHTML = Object.entries(SOURCES).map(([k, v]) => `<span class="chip ${CONFIG.sources.includes(k) ? 'on' : ''}" data-k="${k}">${v}</span>`).join('');
   $('#s-sources').querySelectorAll('.chip').forEach((c) => c.onclick = () => c.classList.toggle('on'));
   $('#s-bodies').innerHTML = Object.entries(BODIES).map(([k, v]) => `<span class="chip ${CONFIG.body_types.includes(k) ? 'on' : ''}" data-k="${k}">${v}</span>`).join('');
@@ -201,7 +202,7 @@ async function saveSettings() {
   });
   try {
   CONFIG = await api('/api/config', { method: 'PUT', body: JSON.stringify({
-    ...CONFIG, budgets, max_age_years: +$('#s-age').value, max_km: +$('#s-km').value, deal_threshold_pct: +$('#s-deal').value,
+    ...CONFIG, budgets, max_age_years: +$('#s-age').value, max_km: +$('#s-km').value, deal_threshold_pct: +$('#s-deal').value, exclude_canarias: $('#s-canarias').checked,
     sources: [...document.querySelectorAll('#s-sources .chip.on')].map((c) => c.dataset.k),
     body_types: [...document.querySelectorAll('#s-bodies .chip.on')].map((c) => c.dataset.k),
     economics: { rented_hours_month: +$('#s-hours').value, getaround_commission_pct: +$('#s-comm').value, monthly_fixed_costs: +$('#s-costs').value },

@@ -142,3 +142,32 @@ def implausibly_cheap(listing: dict) -> bool:
 def is_suspect(listing: dict) -> bool:
     """Precio imposible o descuento exagerado frente a la mediana: se oculta y no es ganga."""
     return implausibly_cheap(listing) or (listing.get("discount_pct") or 0) >= MAX_PLAUSIBLE_DISCOUNT_PCT
+
+
+# Islas Canarias: traer el coche a la península es caro y lento
+_CANARIAS_PROVINCES = {"las palmas", "santa cruz de tenerife", "canarias", "islas canarias"}
+_CANARIAS_PLACES = [
+    "las palmas de gran canaria", "telde", "santa cruz de tenerife", "la laguna", "san cristobal de la laguna",
+    "arrecife", "puerto del rosario", "maspalomas", "san bartolome de tirajana", "adeje", "los realejos",
+    "puerto de la cruz", "granadilla", "candelaria", "icod de los vinos", "la orotava", "santa lucia de tirajana",
+    "ingenio", "aguimes", "arucas", "galdar", "tias", "yaiza", "teguise", "puerto del carmen", "playa blanca",
+    "corralejo", "la oliva", "tuineje", "morro jable", "los llanos de aridane", "santa cruz de la palma",
+    "san sebastian de la gomera", "arona", "guia de isora", "tacoronte", "el rosario",
+    "san miguel de abona", "santiago del teide", "los cristianos", "playa del ingles", "vecindario", "agaete",
+    "mogan", "puerto rico", "costa teguise", "caleta de fuste", "pajara", "gran tarajal",
+]
+_CANARIAS_TEXT = re.compile(r"\b(islas canarias|canarias|tenerife|gran canaria|lanzarote|fuerteventura)\b")
+
+
+def is_canarias(listing: dict) -> bool:
+    """True si el anuncio está en las Islas Canarias (provincia, código postal, municipio o título)."""
+    postal = str(listing.get("postal") or "").strip()
+    if postal[:2] in ("35", "38") and len(postal) == 5 and postal.isdigit():
+        return True
+    if norm(listing.get("province")) in _CANARIAS_PROVINCES:
+        return True
+    place = norm(listing.get("location"))
+    if place and (place in _CANARIAS_PROVINCES or place in _CANARIAS_PLACES):
+        return True
+    # Solo el título: las descripciones de concesionarios dicen cosas como "no enviamos a Canarias"
+    return bool(_CANARIAS_TEXT.search(norm(listing.get("title"))))

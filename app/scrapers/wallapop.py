@@ -48,6 +48,8 @@ class WallapopScraper(BaseScraper):
                     "gearbox": car.get("gearbox"),
                     "body": car.get("body_type"),
                     "location": loc.get("city") if isinstance(loc, dict) else None,
+                    "province": loc.get("region2") if isinstance(loc, dict) else None,
+                    "postal": loc.get("postal_code") if isinstance(loc, dict) else None,
                     "url": f"https://es.wallapop.com/item/{it.get('web_slug')}",
                     "image": img, "images": gallery,
                 })
