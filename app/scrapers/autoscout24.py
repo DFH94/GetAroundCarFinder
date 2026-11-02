@@ -3,11 +3,22 @@ import json
 
 from bs4 import BeautifulSoup
 
-from .base import BaseScraper, to_int
+from .base import BaseScraper, log, to_int
 
 
 class AutoScout24Scraper(BaseScraper):
     name = "autoscout24"
+
+    def fetch_description(self, listing):
+        try:
+            r = self.client.get(listing["url"])
+            r.raise_for_status()
+            tag = BeautifulSoup(r.text, "html.parser").find("script", id="__NEXT_DATA__")
+            details = json.loads(tag.string)["props"]["pageProps"].get("listingDetails") or {}
+            return BeautifulSoup(details.get("description") or "", "html.parser").get_text(" ", strip=True)[:1500]
+        except Exception as e:  # noqa: BLE001
+            log.warning("autoscout24: no se pudo leer la ficha %s: %s", listing.get("id"), e)
+            return None
 
     def search(self, min_price, max_price, min_year, max_km):
         out = []

@@ -1,6 +1,8 @@
 """API FastAPI + scheduler + servidor del dashboard."""
 import logging
+import random
 import threading
+import time
 from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -18,6 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger("app")
 
 app = FastAPI(title="GetAround Car Finder")
+MAX_DETAIL_FETCH = 150  # fichas abiertas por búsqueda para leer descripciones
 STATE = {"running": False, "last_run": None, "last_new": 0, "last_deals": 0}
 _lock = threading.Lock()
 
@@ -47,6 +50,7 @@ def run_scrape():
     try:
         cfg = load_config()
         new = 0
+        fetched = 0
         for budget in [b for b in cfg["budgets"] if b.get("active")]:
             for name in cfg["sources"]:
                 scraper = SCRAPERS[name]()
@@ -58,6 +62,16 @@ def run_scrape():
                         db.mark_damaged(l["id"])
                         continue
                     btype = vehicle.classify(l)
+                    needs_text = (btype in cfg["body_types"] and l.get("description") is None
+                                  and fetched < MAX_DETAIL_FETCH and not db.has_description(l["id"]))
+                    if needs_text:
+                        l["description"] = scraper.fetch_description(l)  # abre la ficha: solo una vez por anuncio
+                        if l["description"] is not None:
+                            fetched += 1
+                            time.sleep(random.uniform(0.6, 1.4))
+                            if vehicle.is_damaged(l):
+                                db.mark_damaged(l["id"])
+                                continue
                     if btype and btype in cfg["body_types"]:
                         l["body"] = btype
                         new += db.upsert(l)

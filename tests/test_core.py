@@ -249,3 +249,52 @@ def test_autocasion_parses_and_filters(monkeypatch):
     assert [o["id"] for o in out] == ["autocasion:1"]
     assert out[0]["title"] == "SEAT Ateca" and out[0]["body"] == "4x4, SUV o pickup"
     assert out[0]["url"] == "https://www.autocasion.com/x-ref1"
+
+
+def test_flooded_listing_text_from_autoscout_is_detected():
+    text = ("VEHICULO INUNDADO, para mas informacion llamenos en horario de 9-14, disponemos de mas "
+            "vehiculos en stock, puedes verlos en siniestradosyaveriados. com")
+    assert vehicle.is_damaged({"title": "Hyundai Tucson 1.6 TGDI", "description": text})
+
+
+def _page_with(next_data=None, html=""):
+    import json
+    body = html
+    if next_data is not None:
+        body += '<script id="__NEXT_DATA__" type="application/json">' + json.dumps(next_data) + "</script>"
+    return "<html>" + body + "</html>"
+
+
+class _Page:
+    def __init__(self, text):
+        self.text = text
+
+    def raise_for_status(self):
+        pass
+
+
+def test_autoscout24_fetch_description(monkeypatch):
+    from app.scrapers.autoscout24 import AutoScout24Scraper
+    s = AutoScout24Scraper()
+    data = {"props": {"pageProps": {"listingDetails": {"description": "<p>Coche <b>inundado</b></p>"}}}}
+    monkeypatch.setattr(s.client, "get", lambda *a, **k: _Page(_page_with(data)))
+    assert s.fetch_description({"id": "x", "url": "https://u"}) == "Coche inundado"
+
+
+def test_autocasion_fetch_description_and_empty(monkeypatch):
+    from app.scrapers.autocasion import AutocasionScraper
+    s = AutocasionScraper()
+    monkeypatch.setattr(s.client, "get", lambda *a, **k: _Page(_page_with(html='<div class="comments-box">Con golpe</div>')))
+    assert s.fetch_description({"id": "x", "url": "https://u"}) == "Con golpe"
+    monkeypatch.setattr(s.client, "get", lambda *a, **k: _Page(_page_with(html='<div class="comments-box"></div>')))
+    assert s.fetch_description({"id": "x", "url": "https://u"}) == ""  # leída pero vacía: no se vuelve a pedir
+
+
+def test_has_description_distinguishes_empty_from_unread(tmp_path, monkeypatch):
+    from app import db
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "t.db")
+    db.init()
+    base = {"source": "x", "title": "t", "make": "m", "model": "m", "year": 2022, "km": 1, "price": 1, "image": "i"}
+    db.upsert({**base, "id": "a:1", "description": ""})
+    db.upsert({**base, "id": "a:2"})
+    assert db.has_description("a:1") and not db.has_description("a:2") and not db.has_description("a:9")

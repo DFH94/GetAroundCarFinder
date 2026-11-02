@@ -95,6 +95,13 @@ def update_scores(rows):
         )
 
 
+def has_description(lid: str) -> bool:
+    """True si ya se leyó la descripción de este anuncio (aunque estuviera vacía)."""
+    with conn() as c:
+        row = c.execute("SELECT description FROM listings WHERE id=?", (lid,)).fetchone()
+    return bool(row and row["description"] is not None)
+
+
 def mark_notified(lid: str):
     with conn() as c:
         c.execute("UPDATE listings SET notified=1 WHERE id=?", (lid,))

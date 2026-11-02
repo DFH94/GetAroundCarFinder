@@ -6,7 +6,7 @@ import re
 
 from bs4 import BeautifulSoup
 
-from .base import BaseScraper, to_int
+from .base import BaseScraper, log, to_int
 
 BASE = "https://www.autocasion.com/coches-segunda-mano"
 
@@ -26,6 +26,17 @@ class AutocasionScraper(BaseScraper):
 
     def _get(self, url, page):
         return self.client.get(url, params={"page": page} if page > 1 else None)
+
+    def fetch_description(self, listing):
+        """Comentario del vendedor (si la ficha lo trae ya escrito en el HTML)."""
+        try:
+            r = self.client.get(listing["url"])
+            r.raise_for_status()
+            box = BeautifulSoup(r.text, "html.parser").select_one(".comments-box")
+            return box.get_text(" ", strip=True)[:1500] if box else ""
+        except Exception as e:  # noqa: BLE001
+            log.warning("autocasion: no se pudo leer la ficha %s: %s", listing.get("id"), e)
+            return None
 
     def search(self, min_price, max_price, min_year, max_km):
         out, seen, with_km = [], set(), True

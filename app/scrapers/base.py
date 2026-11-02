@@ -27,6 +27,10 @@ class BaseScraper:
     def search(self, min_price: int, max_price: int, min_year: int, max_km: int) -> list[dict]:
         raise NotImplementedError
 
+    def fetch_description(self, listing: dict) -> str | None:
+        """Descripción completa del anuncio (requiere abrir su ficha). None si el portal ya la da en el listado."""
+        return None
+
     def run(self, **kw) -> list[dict]:
         try:
             res = self.search(**kw)
