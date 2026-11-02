@@ -298,3 +298,8 @@ def test_has_description_distinguishes_empty_from_unread(tmp_path, monkeypatch):
     db.upsert({**base, "id": "a:1", "description": ""})
     db.upsert({**base, "id": "a:2"})
     assert db.has_description("a:1") and not db.has_description("a:2") and not db.has_description("a:9")
+
+
+def test_placeholder_prices_are_suspect():
+    assert vehicle.is_suspect({"year": 2020, "price": 15})
+    assert not vehicle.is_suspect({"year": 2020, "price": 6000})

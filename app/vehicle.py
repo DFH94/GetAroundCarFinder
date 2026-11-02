@@ -124,11 +124,14 @@ def is_damaged(listing: dict) -> bool:
 
 
 MAX_PLAUSIBLE_DISCOUNT_PCT = 35
+MIN_REAL_PRICE = 1500
 
 
 def implausibly_cheap(listing: dict) -> bool:
     """Coches recientes a un precio demasiado bajo para su edad: casi siempre siniestrados."""
     year, price = listing.get("year"), listing.get("price")
+    if price is not None and price < MIN_REAL_PRICE:
+        return True  # precios de relleno ("15 €", "1 €") que no son reales
     if not (year and price):
         return False
     age = date.today().year - year
